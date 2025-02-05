@@ -27,7 +27,7 @@ COPY . .
 
 ###### PRODUCTION ########
 #FROM base AS prod
-EXPOSE 0.0.0.0:5000
+EXPOSE 5000
 
 # Command to run the application
 CMD ["python", "app.py"]
