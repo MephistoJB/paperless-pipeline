@@ -62,8 +62,10 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
-
-logging.info(f"LogLevel is set to {logger.level}")
+if LOG_LEVEL:
+    logging.info(f"LogLevel is set to {LOG_LEVEL}")
+else:
+    logging.info(f"LogLevel is set to INFO")
 
 logging.info(f"Checking Config")
 #Config Check
