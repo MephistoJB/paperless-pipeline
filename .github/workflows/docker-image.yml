@@ -49,13 +49,5 @@ jobs:
         with:
           context: "{{defaultContext}}"
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: 'latest'
           labels: ${{ steps.meta.outputs.labels }}
-      - uses: actions/checkout@v4
-  
-      - name: Docker Hub Description
-        uses: peter-evans/dockerhub-description@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
