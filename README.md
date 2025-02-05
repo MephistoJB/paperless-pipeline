@@ -1,6 +1,6 @@
 This is a dockerbased processor, which is meant to be triggered by paperless-ngx via webhook.
 
-It is ment to be installed as a docker image via dockerhub which can be pulled by: docker pull mephistojb/paperless-ngx-ollamaprocessor:latest
+It is ment to be installed as a docker image via dockerhub which can be pulled by: docker pull mephistojb/paperless-ngx-ollamaprocessor:main
 
 There are mandatory environment variables which have to be set:
 
