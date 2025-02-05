@@ -63,7 +63,7 @@ logging.basicConfig(
     ]
 )
 
-logging.info(f"LogLevel is set to {LOG_LEVEL}")
+logging.info(f"LogLevel is set to {logger.level}")
 
 logging.info(f"Checking Config")
 #Config Check
@@ -98,8 +98,7 @@ else:
     stopServer()
 
 if PAPERLESS_BASE_URL :
-    PAPERLESS_BASE_URL = PAPERLESS_BASE_URL.rstrip('/')
-    if not PAPERLESS_BASE_URL.endswith('/api'):
+    if not PAPERLESS_BASE_URL.endswith('/api/'):
         logging.debug(f"PAPERLESS_BASE_URL does not end with /api. Adding it.")
         PAPERLESS_BASE_URL += '/api'
     logging.info(f"PAPERLESS_BASE_URL is set to: {PAPERLESS_BASE_URL}. Checking now if Paperless is reachable.")
@@ -210,6 +209,6 @@ async def receive_data():
             return False
 
 if __name__ == '__main__':
-    #app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000)
     #app.run(host='0.0.0.0', port=5000, debug=True)
-    app.run(debug=True)
+    #app.run(debug=True)
