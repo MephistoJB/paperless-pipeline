@@ -110,7 +110,7 @@ else:
     stopServer()
 
 if PAPERLESS_BASE_URL :
-    if not PAPERLESS_BASE_URL.endswith('/api/'):
+    if not PAPERLESS_BASE_URL.endswith('/api'):
         logging.debug(f"PAPERLESS_BASE_URL does not end with /api. Adding it.")
         PAPERLESS_BASE_URL += '/api'
     logging.info(f"PAPERLESS_BASE_URL is set to: {PAPERLESS_BASE_URL}. Checking now if Paperless is reachable.")
