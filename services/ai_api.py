@@ -37,6 +37,7 @@ class AI:
 
         response = chat(self._model, messages=messages, format=info.model_json_schema())
         jsonvalue = json.loads(response['message']['content'])
+        logging.debug(f"The AI returned: {jsonvalue['info']}")
         return (jsonvalue['info'])
     
     def selfCheck(self):

@@ -27,7 +27,9 @@ AUTH_TOKEN=os.getenv('AUTH_TOKEN', None)
 AI_USAGE = 'OLLAMA' #Currently on OLLAMA is support. So we leave this env out now.
 OLLAMA_MODEL = os.getenv('OLLAMA_MODEL', None)
 OLLAMA_HOST = os.getenv('OLLAMA_HOST', None)
-
+PROCESSING_TAG = os.getenv('ai_processed', 'ai-processed')
+ERROR_TAG = os.getenv('ai_error', 'ai-error')
+DEBUG = os.getenv('DEBUG', 'False')
 
 
 # Create Logger
@@ -53,7 +55,12 @@ if LOG_LEVEL:
         logging.error("Log Level not set correctly. Please choose from ERROR, WARNING, INFO or DEBUG")
         stopServer()
 else:
-    logger.setLevel(logging.INFO)
+    if(DEBUG and DEBUG==True):
+        logger.setLevel(logging.DEBUG)
+        LOG_LEVEL = "DEBUG"
+    else:
+        logger.setLevel(logging.INFO)
+        LOG_LEVEL = "INFO"
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -62,10 +69,13 @@ logging.basicConfig(
         logging.StreamHandler(sys.stdout)
     ]
 )
-if LOG_LEVEL:
-    logging.info(f"LogLevel is set to {LOG_LEVEL}")
-else:
-    logging.info(f"LogLevel is set to INFO")
+
+logging.info(f"LogLevel is set to {LOG_LEVEL}")
+
+if(DEBUG and DEBUG=='True'):
+    app.config['DEBUG'] = True
+    app.config['TESTING'] = True
+    logging.warning("DEBUG MODE enabled")
 
 logging.info(f"Checking Config")
 #Config Check
@@ -102,7 +112,7 @@ else:
 if PAPERLESS_BASE_URL :
     if not PAPERLESS_BASE_URL.endswith('/api/'):
         logging.debug(f"PAPERLESS_BASE_URL does not end with /api. Adding it.")
-        PAPERLESS_BASE_URL += '/api/'
+        PAPERLESS_BASE_URL += '/api'
     logging.info(f"PAPERLESS_BASE_URL is set to: {PAPERLESS_BASE_URL}. Checking now if Paperless is reachable.")
     
     if AUTH_TOKEN and len(AUTH_TOKEN) >= 6:
@@ -118,9 +128,22 @@ if PAPERLESS_BASE_URL :
                                 logger=logging)
             logging.debug("PaperlessAPI Object successfully created")
 
-            #if api.test_connection:
-            #    logging.error(f"Connection to {PAPERLESS_BASE_URL} with AUTH_TOKEN {AUTH_TOKEN[:3] + '*' * (len(AUTH_TOKEN) - 6) + AUTH_TOKEN[-3:]} failed")
-            #    stopServer()
+            if not api.test_connection:
+                logging.error(f"Connection to {PAPERLESS_BASE_URL} with AUTH_TOKEN {AUTH_TOKEN[:3] + '*' * (len(AUTH_TOKEN) - 6) + AUTH_TOKEN[-3:]} failed")
+                stopServer()
+            else:
+                taglist = api.get_all_tags()
+                pt = taglist.get(PROCESSING_TAG,'None')
+                et = taglist.get(ERROR_TAG,'None')
+                if not pt:           
+                    logging.error(f"PROCESSING_TAG {PROCESSING_TAG} not found.")
+                    stopServer()
+                if not et:
+                    logging.error(f"PROCESSING_TAG {ERROR_TAG} not found. Creating it")
+                    stopServer()
+                app.config['PROCESSING_TAG'] = pt
+                app.config['ERROR_TAG'] = et
+
         except Exception as e:
             logging.error(f"Failed to create PaperlessAPI object: {e}")
             stopServer()
@@ -158,10 +181,30 @@ def debug():
 async def receive_data():
     client_ip = request.remote_addr
     data = request.get_json()
+    taglist = None
+    callTag = None
+
+    if not data or not data.get("tag", None):
+         # If no document url is given, then  we need to throw an error
+        logging.error("No call-Tag was given. Please hand over the tag, which was used to trigger the webhook")
+        return jsonify({
+            'error': 'Please add a webhook parameter "tag" (without quotes) as key and the tag which was used to trigger the webhook as value',
+            'client_ip': client_ip
+        }), 400
+    else:
+        taglist = api.get_all_tags()
+        temptag = data.get("tag", None)
+        callTag = taglist.get(temptag,'None')
+        if not callTag:
+            logging.error(f"Call-Tag {temptag} was not found. Please check the spelling")
+            return jsonify({
+                'error': f"Call-Tag {temptag} was not found. Please check the spelling",
+                'client_ip': client_ip
+            }), 400
 
     if not data or not data.get("url", None):
          # If no document url is given, then  we need to throw an error
-        logging.info("No Document url was given.")
+        logging.error("No Document url was given.")
         return jsonify({
             'error': 'Please add a webhook parameter "url" (without quotes) as key and "\{doc_url\}" as value',
             'client_ip': client_ip
@@ -180,7 +223,7 @@ async def receive_data():
         for field in app.config['ACCEPTED_DATAFIELDS']:
             logging.debug(f"Check if field {field} was handed over")
             if data.get(field, None):
-                logging.debug(f"Field {field} was handed over. Asking the AI based on the prompt {data.get(field)}")
+                logging.debug(f"Field {field} was handed over. Asking the AI based on the prompt: {data.get(field)}")
                 app.config['ACCEPTED_DATAFIELDS'][field] = ai.getResponse(content,data.get(field))
             else:
                 del app.config['ACCEPTED_DATAFIELDS'][field]
@@ -192,10 +235,30 @@ async def receive_data():
                 'client_ip': client_ip
             }), 400
         else:
-            success = await api.patch_document(doc_id, app.config['ACCEPTED_DATAFIELDS'])
+            data = app.config['ACCEPTED_DATAFIELDS']
+            tags = document['tags']
+            if callTag in tags:
+                tags.remove(callTag)
+                logging.debug(f"Removed Call Tag {callTag}")
+            else:
+                logging.debug(f"Call Tag {callTag} doesn´t seem to be correct. It was not assigned to the document with the title {document['title']} and the id {doc_id}")
+                return jsonify({
+                    'error': f"Call Tag {callTag} doesn´t seem to be correct. It was not assigned to the document with the title {document['title']} and the id {doc_id}",
+                    'client_ip': client_ip
+                }), 400
+
+            data['tags'] = tags
+            success = await api.patch_document(doc_id, data)
+            #todo addEndTag (error or success)
 
             if success:
                 logging.debug("Data has been processed successfully!")
+                tags.append(app.config['PROCESSING_TAG'])
+                jsonTags = {}
+                jsonTags['tags'] = tags
+                success = await api.patch_document(doc_id, jsonTags)
+                if success:
+                    logging.debug("Processing Tag added successfully")
                 return jsonify({
                     'message': 'Data has been processed successfully!',
                     'client_ip': client_ip,
@@ -203,6 +266,12 @@ async def receive_data():
                 }), 200
             else:
                 logging.error(f"Failed to patch document. Status code: {success.status_code}, Response: {success.text}")
+                tags.append(app.config['ERROR_TAG'])
+                jsonTags = {}
+                jsonTags['tags'] = tags
+                success = await api.patch_document(doc_id, jsonTags)
+                if success:
+                    logging.debug("Error Tag added successfully")
                 return jsonify({
                     'error': f"Failed to patch document. Status code: {success.status_code}, Response: {success.text}",
                     'client_ip': client_ip,
@@ -211,6 +280,6 @@ async def receive_data():
             return False
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
-    #app.run(host='0.0.0.0', port=5000, debug=True)
+    #app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
     #app.run(debug=True)

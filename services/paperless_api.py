@@ -26,12 +26,18 @@ class PaperlessAPI:
             return {}
     
     def get_document_by_id(self, document_id):
-        response = requests.get(f"{self._api_url}/documents/{document_id}/",
-                                headers = {"Authorization": f"Token {self._auth_token}"})
-        if response.ok:
-            return response.json()
-        else:
-            return {}
+        return self.__get_item_by_id("documents", document_id)
+    
+    def get_tag_by_id(self, tag_id):
+        return self.__get_item_by_id("tag", tag_id)
+    
+    def get_all_tags(self):
+        response = self.__get_all_items("tags")['results']
+        taglist = {}
+        for tag in response:
+            taglist[tag['name']] = tag['id']
+        logging.debug(taglist)
+        return taglist
         
     def test_connection(self):
         response = requests.get(f"{self._api_url}/",
@@ -47,18 +53,26 @@ class PaperlessAPI:
                                headers = {"Authorization": f"Token {self._auth_token}", 'Content-type': "application/json" },
                                json = data)
     
+    def __get_all_items(self, item_type):
+        response = requests.get(f"{self._api_url}/{item_type}/",
+                                headers = {"Authorization": f"Token {self._auth_token}"})
+        if response.ok:
+            logging.debug(response.json)
+            return response.json()
+        else:
+            return {}    
 
-    #######maybe for later
-    
-    def _get_item_by_id(self, item_type, item_id):
+    def __get_item_by_id(self, item_type, item_id):
         if item_id:
             response = requests.get(f"{self._api_url}/{item_type}/{item_id}/",
                                 headers = {"Authorization": f"Token {self._auth_token}"})
-            if response.ok:
-                return response.json()
-        return {}
-
-
+        if response.ok:
+            logging.debug(response.json)
+            return response.json()
+        else:
+            return {}
+        
+    #######maybe for later
     
     def get_customfield_from_name(self, customfield_name):
         result = {}

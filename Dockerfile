@@ -20,7 +20,7 @@ RUN pip install debugpy
 RUN apt update
 RUN apt install nano curl iputils-ping -y
 
-CMD python -m debugpy --listen 0.0.0.0:5679 --wait-for-client -m flask run -h 0.0.0.0 -p 5000
+CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5679", "--wait-for-client", "-m", "flask", "--debug", "run", "-h", "0.0.0.0", "-p", "5000"]
 
 # Expose the port
 #EXPOSE 4000
