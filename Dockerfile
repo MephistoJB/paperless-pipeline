@@ -1,3 +1,4 @@
+# Base Image
 FROM python:3.9-slim AS base
 
 # Set the working directory
@@ -11,36 +12,24 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the application code
 COPY . .
 
-
 ####### DEBUG ###########
-
 FROM base AS debug
 
+# Install debugging tools
 RUN pip install debugpy
-RUN apt update
-RUN apt install nano curl iputils-ping -y
+RUN apt update && apt install -y nano curl iputils-ping poppler-utils
 
-CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5679", "--wait-for-client", "-m", "flask", "--debug", "run", "-h", "0.0.0.0", "-p", "5000"]
-
-# Expose the port
-#EXPOSE 4000
+# Debugging command
+CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5679", "--wait-for-client", "-m", "flask", "run", "-h", "0.0.0.0", "-p", "5000"]
 
 ###### PRODUCTION ########
 FROM base AS prod
+
+# Install Gunicorn for production
+RUN pip install gunicorn
+
+# Expose the port Flask runs on
 EXPOSE 5000
 
-# Command to run the application
-CMD ["python", "app.py"]
-
-# Command to run the application
-#CMD ["python", "app.py"]
-
-#RUN apt-get update && apt-get install -y python3-dev
-#    && cd /usr/local/bin \
-#    && ln -s /usr/bin/python3 python \
-#    && pip3 install --upgrade pip
-
-#ENV PYTHONDONTWRITEBYTECODE 1
-#ENV PYTHONUNBUFFERED 1
-#ENV DEBIAN_FRONTEND=noninteractive
-#CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5679", "app.py"]
+# Run the app with Gunicorn in production
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]

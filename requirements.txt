@@ -2,3 +2,4 @@ flask[async]
 ollama
 pyyaml
 requests
+gunicorn
