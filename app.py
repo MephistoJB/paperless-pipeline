@@ -10,6 +10,9 @@ from services.paperless_api import PaperlessAPI
 # Flask-App-Instanz erstellen
 app = Flask(__name__)
 
+# Store version in a variable (or load from a config file)
+VERSION = "1.1.1"
+
 #############################################
 #FUTURE WORK STARTS HERE
 ACCEPTED_DATAFIELDS = {
@@ -181,7 +184,7 @@ def refreshMetaData():
 
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template("index.html", version=VERSION)
 
 @app.route('/api/inbox_list', methods=['GET'])
 def inbox_list():
@@ -285,7 +288,7 @@ if __name__ == '__main__':
     app.run(debug=True)
 
 #Just for debugging purposes
-@app.route('/debug', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
+@app.route('/debug_custom', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
 def debug():
     client_ip = request.remote_addr
     request_data = {
@@ -301,7 +304,8 @@ def debug():
 
     return jsonify({
         "message": "Received request",
-        "request_data": request_data
+        "request_data": request_data,
+        "version": VERSION
     }), 200
 
 @app.route('/api/tag_document', methods=['POST'])
