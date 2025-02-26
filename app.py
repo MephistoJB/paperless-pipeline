@@ -1,7 +1,6 @@
 import logging.handlers
 from flask import Flask, render_template, request, jsonify, Response
 import os, logging, sys, signal
-from pdf2image import convert_from_path
 import requests
 
 from services.ai_api import AI
@@ -259,30 +258,6 @@ def document_info(doc_id):
     except Exception as e:
         logging.error(f"Fehler beim Abrufen der Dokumentinformationen: {e}")
         return jsonify({"error": str(e)}), 500
-
-@app.route('/api/render_pdf/<int:doc_id>', methods=['GET'])
-def render_pdf(doc_id):
-    try:
-        # Holen Sie die PDF-Datei von der REST-API
-        response = api.get_documentpreview_by_id(doc_id)
-
-        pdf_path = 'tmp/rendered.pdf'
-
-        # Speichern der PDF-Datei temporär
-        with open(pdf_path, 'wb') as f:
-            f.write(response.content)
-
-        # Konvertiere PDF zu Bild
-        images = convert_from_path(pdf_path)
-        image_path = 'static/tmp/rendered.png'
-        images[0].save(image_path, 'PNG')
-        os.remove(pdf_path)
-
-        return jsonify({'image_url': image_path})
-
-    except Exception as e:
-        print(e)
-        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
