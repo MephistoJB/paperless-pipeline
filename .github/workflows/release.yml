@@ -67,7 +67,11 @@ jobs:
             echo "Generating commit list since last tag: $PREV_TAG"
             git log $PREV_TAG..HEAD --pretty=format:"- %s" > commits.txt
           fi
-          echo "commit_body=$(cat commits.txt)" >> $GITHUB_ENV
+          {
+            echo "commit_body<<EOF"
+            cat commits.txt
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -76,7 +80,7 @@ jobs:
           name: Release v${{ needs.check-version.outputs.version }}
           body: |
             ## Changes in this Release:
-            ${{ env.commit_body }}
+            ${{ steps.commit_messages.outputs.commit_body }}
           draft: false
           prerelease: false
         env:
