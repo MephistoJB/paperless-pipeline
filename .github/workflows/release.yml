@@ -3,12 +3,12 @@ name: Create GitHub Release on Version Change
 on:
   push:
     paths:
-      - app.py  # Only trigger the workflow if app.py is modified
+      - app.py
     branches:
-      - main  # Change this to match your main branch
+      - main
 
 permissions:
-  contents: write  # ✅ Fix: Grant write permission to create releases
+  contents: write  # Allows creating releases
 
 jobs:
   check-version:
@@ -20,11 +20,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # Fetches the previous commit to compare versions
+          fetch-depth: 2  # Fetches previous commit for comparison
 
       - name: Extract Version from app.py
         id: get_version
-        run: echo "version=$(grep -oP 'VERSION\s*=\s*\"\K[^\"]+' app.py)" >> $GITHUB_ENV
+        run: |
+          VERSION=$(grep -oP 'VERSION\s*=\s*\"\K[^\"]+' app.py)
+          echo "version=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Check if Version Changed
         id: check_version
@@ -38,28 +41,39 @@ jobs:
           else
             echo "changed=false" >> $GITHUB_ENV
             echo "changed=false" >> $GITHUB_OUTPUT
-          fi
 
   create-release:
     needs: check-version
-    if: ${{ needs.check-version.outputs.changed == 'true' }}  # Only run if version changed
+    if: ${{ needs.check-version.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 100  # Ensure we get enough history for commit messages
 
-      - name: Debug Outputs
+      - name: Get Commit Messages
+        id: commit_messages
         run: |
-          echo "changed=${{ needs.check-version.outputs.changed }}"
-          echo "version=${{ needs.check-version.outputs.version }}"
+          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found, listing last 10 commits."
+            git log --pretty=format:"- %s" -n 10 > commits.txt
+          else
+            echo "Generating commit list since last tag: $PREV_TAG"
+            git log $PREV_TAG..HEAD --pretty=format:"- %s" > commits.txt
+          fi
+          echo "commit_body=$(cat commits.txt)" >> $GITHUB_ENV
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.check-version.outputs.version }}
           name: Release v${{ needs.check-version.outputs.version }}
-          body: "Automatic release based on version change in app.py"
+          body: |
+            ## Changes in this Release:
+            ${{ env.commit_body }}
           draft: false
           prerelease: false
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Ensure this token is used
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
