@@ -1,7 +1,8 @@
 import logging.handlers
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 import os, logging, sys, signal
 import requests
+import subprocess
 
 from services.ai_api import AI
 from services.paperless_api import PaperlessAPI
@@ -11,6 +12,13 @@ app = Flask(__name__)
 
 # Store version in a variable (or load from a config file)
 VERSION = "1.1.1"
+
+# Define fixed tags for buttons
+BUTTON_TAGS = {
+    "next": ["-Inbox"],
+    "send_to_ai": ["ai-title, -Inbox"],
+    "investigate": ["check, -Inbox"]
+}
 
 #############################################
 #FUTURE WORK STARTS HERE
@@ -183,7 +191,7 @@ def refreshMetaData():
 
 @app.route('/')
 def index():
-    return render_template("index.html", version=VERSION)
+    return render_template("index.html", version=VERSION, button_tags=BUTTON_TAGS)
 
 @app.route('/api/inbox_list', methods=['GET'])
 def inbox_list():
@@ -288,23 +296,30 @@ async def tag_document():
     try:
         data = request.get_json()
         doc_id = data.get("doc_id")
-        tag_name = data.get("tag_name")
+        tag_names = data.get("tag_names", [])  # Now expecting an array of tag names
 
-        if not doc_id or not tag_name:
-            return jsonify({"error": "doc_id and tag_name are required"}), 400
-
-        # Check if the tag should be removed (starts with "-")
-        remove_tag = tag_name.startswith('-')
-        clean_tag_name = tag_name.lstrip('-')  # Remove leading '-'
+        if not doc_id or not tag_names:
+            return jsonify({"error": "doc_id and tag_names (list) are required"}), 400
 
         # Get the tag list from the configuration
         tag_list = app.config.get('TAG_LIST', {})
 
-        # Find the corresponding tag ID
-        tag_id = tag_list.get(clean_tag_name)
+        # Convert tag names to tag IDs
+        tag_ids_to_add = []
+        tag_ids_to_remove = []
 
-        if not tag_id:
-            return jsonify({"error": f"Tag '{clean_tag_name}' not found"}), 404
+        for tag_name in tag_names:
+            remove_tag = tag_name.strip().startswith('-')
+            clean_tag_name = tag_name.strip().lstrip('-')  # Remove leading '-'
+            tag_id = tag_list.get(clean_tag_name)
+
+            if not tag_id:
+                return jsonify({"error": f"Tag '{clean_tag_name}' not found"}), 404
+
+            if remove_tag:
+                tag_ids_to_remove.append(tag_id)
+            else:
+                tag_ids_to_add.append(tag_id)
 
         # Fetch document from Paperless
         document = api.get_document_by_id(doc_id)
@@ -315,33 +330,41 @@ async def tag_document():
         # Current tags of the document
         current_tags = document.get('tags', [])
 
-        if remove_tag:
-            # Remove the tag if it exists
+        # Remove tags
+        for tag_id in tag_ids_to_remove:
             if tag_id in current_tags:
                 current_tags.remove(tag_id)
-                action = "removed"
-            else:
-                return jsonify({"message": f"Tag '{clean_tag_name}' was not assigned to document {doc_id}"}), 200
-        else:
-            # Add tag if it is not already present
+
+        # Add tags
+        for tag_id in tag_ids_to_add:
             if tag_id not in current_tags:
                 current_tags.append(tag_id)
-                action = "added"
-            else:
-                return jsonify({"message": f"Tag '{clean_tag_name}' is already assigned to document {doc_id}"}), 200
 
         # Send PATCH request to update tags
-        success = await api.patch_document(doc_id, {'tags':current_tags})
+        success = await api.patch_document(doc_id, {'tags': current_tags})
 
         if success:
-            return jsonify({"message": f"Tag '{clean_tag_name}' successfully {action} for document {doc_id}"}), 200
+            return jsonify({"message": f"Tags successfully updated for document {doc_id}"}), 200
         else:
             return jsonify({"error": "Error updating document tags"}), 500
 
     except Exception as e:
         logging.error(f"Error while tagging document: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/log', methods=['GET'])
+def stream_log():
+    def generate():
+        # Öffne den aktuellen Log-Stream von stdout & stderr
+        process = subprocess.Popen(['tail', '-f', '/proc/1/fd/1'], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        try:
+            for line in process.stdout:
+                yield line
+        except GeneratorExit:
+            process.kill()
     
+    return Response(stream_with_context(generate()), content_type="text/plain")
+
 @app.route('/api/data', methods=['POST'])
 async def receive_data():
     client_ip = request.remote_addr

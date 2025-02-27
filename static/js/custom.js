@@ -20,7 +20,7 @@ async function renderPdf(docId) {
         return response.image_url; // Return the received image URL
     } catch (error) {
         console.error("Error rendering PDF:", error);
-        alert("Error rendering PDF."); // Notify the user about the failure
+        showToast("error", "Error rendering PDF");
         return null; // Return null in case of an error
     }
 }
@@ -60,30 +60,52 @@ function loadInboxList() {
         })
         .fail(function () {
             console.error("Error loading inbox list."); // Log failure in console
+            showToast("error", "Error loading inbox list.");
         });
 }
 
 /**
- * Tags a document with a specific tag name.
- * @param {number} docId - The ID of the document.
- * @param {string} tagName - The name of the tag to be assigned.
+ * Displays a Bootstrap toast notification.
+ * @param {string} type - The type of toast ("success" or "error").
+ * @param {string} message - The message to display inside the toast.
+ * @param {number} duration - The duration (in milliseconds) for which the toast should be visible (default: 2000ms).
  */
-async function tagDocument(docId, tagName) {
-    try {
-        console.log(`Tagging document ${docId} with tag '${tagName}'...`);
+function showToast(type, message, duration = 2000) {
+    let toastSelector = type === "success" ? "#toastSuccess" : "#toastError"; // Select the appropriate toast container
+    let messageSelector = type === "success" ? "#toastSuccessMessage" : "#toastErrorMessage"; // Select the message span
 
-        // Send a POST request to assign a tag to the document
+    $(messageSelector).text(message); // Set the toast message dynamically
+    let $toast = $(toastSelector); // Select the toast element using jQuery
+
+    // Create a Bootstrap Toast instance with a custom delay (duration)
+    let toast = new bootstrap.Toast($toast[0], { delay: duration });
+
+    toast.show(); // Display the toast
+}
+
+/**
+ * Tags a document with multiple tag names.
+ * @param {number} docId - The ID of the document.
+ * @param {string[]} tagNames - An array of tag names to be assigned.
+ */
+async function tagDocument(docId, tagNames) {
+    try {
+        console.log(`Tagging document ${docId} with tags: '${tagNames.join(", ")}'...`);
+
+        // Send a POST request to assign multiple tags to the document
         const response = await $.ajax({
             url: '/api/tag_document', // API endpoint for tagging
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ doc_id: docId, tag_name: tagName }) // Send document ID and tag name
+            data: JSON.stringify({ doc_id: docId, tag_names: tagNames }) // Send document ID and tag names as an array
         });
 
         console.log("Document tagged successfully:", response); // Log success response
-        loadInboxList() // Reload
+        showToast("success", `Document successfully tagged with: '${tagNames.join(", ")}'.`);
+        loadInboxList(); // Reload inbox list to reflect changes
     } catch (error) {
         console.error("Error tagging document:", error); // Log error
+        showToast("error", "Error tagging document.");
     }
 }
 
@@ -135,9 +157,21 @@ async function loadDocument(docId) {
         });
 
         // Attach event listeners to buttons
-        $('#btnNext').off('click').on('click', () => tagDocument(docId, "-Inbox"));
-        $('#btnSendToAI').off('click').on('click', () => tagDocument(docId, "ai-title"));
-        $('#btnInvestigate').off('click').on('click', () => tagDocument(docId, "check"));
+        const btnNextTags = $("#btnNext").data("tags").split(",");
+        const btnSendToAITags = $("#btnSendToAI").data("tags").split(",");
+        const btnInvestigateTags = $("#btnInvestigate").data("tags").split(",");
+
+        $("#btnNext").on("click", function() {
+            tagDocument(docId, btnNextTags);
+        });
+
+        $("#btnSendToAI").on("click", function() {
+            tagDocument(docId, btnSendToAITags);
+        });
+
+        $("#btnInvestigate").on("click", function() {
+            tagDocument(docId, btnInvestigateTags);
+        });
 
         // Load and display the PDF preview
         const pdfImage = $('#pdfImage');
@@ -163,7 +197,7 @@ async function loadDocument(docId) {
 
     } catch (error) {
         console.error("Error loading document:", error);
-        alert("Error loading document.");
+        showToast("error", "Error loading document");
     }
 }
 
@@ -173,29 +207,26 @@ async function loadDocument(docId) {
  * - Binds the refresh metadata button
  * - Adjusts the PDF viewer height on window resize
  */
-document.addEventListener('DOMContentLoaded', function () {
-    $(window).on('resize', updatePdfImageHeight); // Adjust PDF viewer height dynamically
-    loadInboxList(); // Load document list when page loads
+$(document).ready(function () {
+    $(window).on('resize', updatePdfImageHeight);
+    loadInboxList();
 
     // Sidebar toggle functionality
-    const sidebar = document.getElementById("sidebar");
-    const content = document.getElementById("content");
-    const toggleButton = document.getElementById("sidebarToggle");
-
-    toggleButton.addEventListener("click", function () {
-        sidebar.classList.toggle("collapsed"); // Toggle collapsed class on sidebar
-        content.classList.toggle("collapsed"); // Adjust content area accordingly
+    $("#sidebarToggle").on("click", function () {
+        $("#sidebar, #content").toggleClass("collapsed");
     });
 
     // Refresh metadata button functionality
-    $("#navRefresh").click(async function (event) {
-        event.preventDefault(); // Prevent default behavior of the button
+    $("#navRefresh").on("click", async function (event) {
+        event.preventDefault();
         try {
-            const response = await fetch("/refreshMetadata"); // Send request to refresh metadata
-            if (!response.ok) throw new Error(`Failed to refresh Metadata: ${response.statusText}`);
-            console.log("Metadata successfully refreshed!"); // Log success message
+            const response = await fetch("/refreshMetadata");
+            if (!response.ok) throw new Error(`Error refreshing metadata: ${response.statusText}`);
+            console.log("Metadata successfully refreshed!");
+            showToast("success", "Metadata successfully refreshed.");
         } catch (error) {
-            console.error("Error refreshing metadata:", error); // Log error
+            console.error("Error refreshing metadata:", error);
+            showToast("error", "Error refreshing metadata.");
         }
     });
 });
