@@ -67,11 +67,17 @@ jobs:
             echo "Generating commit list since last tag: $PREV_TAG"
             git log $PREV_TAG..HEAD --pretty=format:"- %s" > commits.txt
           fi
+
+          # Ensure at least one line exists in the commit message file
+          if [ ! -s commits.txt ]; then
+            echo "- No commits found for this release." > commits.txt
+          fi
+
           {
             echo "commit_body<<EOF"
             cat commits.txt
             echo "EOF"
-          } >> $GITHUB_OUTPUT
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
