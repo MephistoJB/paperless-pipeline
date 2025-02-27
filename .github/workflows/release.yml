@@ -20,7 +20,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # Holt nur die letzten 2 Commits für den Vergleich
+          fetch-depth: 0
 
       - name: Extract Version from app.py
         id: get_version
