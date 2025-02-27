@@ -8,7 +8,7 @@ on:
       - main
 
 permissions:
-  contents: write  # Allows creating releases
+  contents: write  # Required for creating releases
 
 jobs:
   check-version:
@@ -20,30 +20,30 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 100  # Ensure enough history for version comparison
+          fetch-depth: 100  # Ensures enough history for version comparison
 
       - name: Extract Version from app.py
         id: get_version
         run: |
           VERSION=$(grep -oP 'VERSION\s*=\s*\"\K[^\"]+' app.py)
-          echo "version=$VERSION" >> $GITHUB_ENV
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check if Version Changed
         id: check_version
         run: |
           PREV_VERSION=$(git show HEAD~1:app.py 2>/dev/null | grep -oP 'VERSION\s*=\s*"\K[^"]+' || echo "none")
           CURR_VERSION="${{ env.version }}"
-          
+
           echo "Previous Version: $PREV_VERSION"
           echo "Current Version: $CURR_VERSION"
 
           if [ "$PREV_VERSION" != "$CURR_VERSION" ]; then
-            echo "changed=true" >> $GITHUB_ENV
-            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "changed=true" >> "$GITHUB_ENV"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "changed=false" >> $GITHUB_ENV
-            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "changed=false" >> "$GITHUB_ENV"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
   create-release:
@@ -73,11 +73,9 @@ jobs:
             echo "- No commits found for this release." > commits.txt
           fi
 
-          {
-            echo "commit_body<<EOF"
-            cat commits.txt
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
+          echo "commit_body<<EOF" >> "$GITHUB_ENV"
+          cat commits.txt >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -86,7 +84,7 @@ jobs:
           name: Release v${{ needs.check-version.outputs.version }}
           body: |
             ## Changes in this Release:
-            ${{ steps.commit_messages.outputs.commit_body }}
+            ${{ env.commit_body }}
           draft: false
           prerelease: false
         env:
