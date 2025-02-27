@@ -11,7 +11,7 @@ from services.paperless_api import PaperlessAPI
 app = Flask(__name__)
 
 # Store version in a variable (or load from a config file)
-VERSION = "1.2.4"
+VERSION = "1.2.5"
 
 # Define fixed tags for buttons
 BUTTON_TAGS = {
