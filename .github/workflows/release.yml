@@ -73,21 +73,17 @@ jobs:
             echo "- No commits found for this release." > commits.txt
           fi
 
-          # Korrekte Art, mehrzeilige Variablen zu setzen
-          {
-            echo "commit_body<<EOF"
-            cat commits.txt
-            echo "EOF"
-          } >> "$GITHUB_ENV"
+          # Speichert die Commit-Liste in einer temporären Datei
+          echo "commit_body<<EOF" >> $GITHUB_ENV
+          cat commits.txt >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.check-version.outputs.version }}
           name: Release v${{ needs.check-version.outputs.version }}
-          body: |
-            ## Changes in this Release:
-            ${{ env.commit_body }}
+          body_path: commits.txt  # Verwendet direkt die Datei mit den Commits
           draft: false
           prerelease: false
         env:
