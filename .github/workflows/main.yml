@@ -1,0 +1,55 @@
+name: Create GitHub Release on Version Change
+
+on:
+  push:
+    paths:
+      - app.py  # Only trigger the workflow if app.py is modified
+    branches:
+      - main  # Change this to match your main branch
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      changed: ${{ steps.check_version.outputs.changed }}
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Fetches the previous commit to compare versions
+
+      - name: Extract Version from app.py
+        id: get_version
+        run: echo "version=$(grep -oP 'VERSION\s*=\s*\"\K[^\"]+' app.py)" >> $GITHUB_ENV
+
+      - name: Check if Version Changed
+        id: check_version
+        run: |
+          PREV_VERSION=$(git show HEAD~1:app.py | grep -oP 'VERSION\s*=\s*"\K[^"]+' || echo "none")
+          echo "Previous Version: $PREV_VERSION"
+          echo "Current Version: ${{ env.version }}"
+          if [ "$PREV_VERSION" != "${{ env.version }}" ]; then
+            echo "changed=true" >> $GITHUB_ENV
+          else
+            echo "changed=false" >> $GITHUB_ENV
+          fi
+
+  create-release:
+    needs: check-version
+    if: needs.check-version.outputs.changed == 'true'  # Only run if the version changed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: Release v${{ needs.check-version.outputs.version }}
+          body: "Automatic release based on version change in app.py"
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
