@@ -20,7 +20,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 100  # Stellt sicher, dass genug Commits für den Vergleich vorhanden sind
+          fetch-depth: 2  # Holt nur die letzten 2 Commits für den Vergleich
 
       - name: Extract Version from app.py
         id: get_version
@@ -54,36 +54,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 100  # Stellt sicher, dass genug Commits für den Changelog vorhanden sind
-
-      - name: Get Commit Messages
-        id: commit_messages
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -z "$PREV_TAG" ]; then
-            echo "No previous tag found, listing last 10 commits."
-            git log --pretty=format:"- %s" -n 10 > commits.txt
-          else
-            echo "Generating commit list since last tag: $PREV_TAG"
-            git log $PREV_TAG..HEAD --pretty=format:"- %s" > commits.txt
-          fi
-
-          # Sicherstellen, dass mindestens eine Zeile existiert
-          if [ ! -s commits.txt ]; then
-            echo "- No commits found for this release." > commits.txt
-          fi
-
-          # Speichert die Commit-Liste in einer temporären Datei
-          echo "commit_body<<EOF" >> $GITHUB_ENV
-          cat commits.txt >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
+          fetch-depth: 2  # Holt nur die letzten 2 Commits
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.check-version.outputs.version }}
           name: Release v${{ needs.check-version.outputs.version }}
-          body_path: commits.txt  # Verwendet direkt die Datei mit den Commits
+          body: "tbd"
           draft: false
           prerelease: false
         env:
