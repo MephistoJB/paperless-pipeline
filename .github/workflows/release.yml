@@ -8,7 +8,7 @@ on:
       - main
 
 permissions:
-  contents: write  # Required for creating releases
+  contents: write  # Erforderlich für das Erstellen von Releases
 
 jobs:
   check-version:
@@ -20,7 +20,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 100  # Ensures enough history for version comparison
+          fetch-depth: 100  # Stellt sicher, dass genug Commits für den Vergleich vorhanden sind
 
       - name: Extract Version from app.py
         id: get_version
@@ -54,7 +54,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 100  # Ensures we have enough commits for changelog
+          fetch-depth: 100  # Stellt sicher, dass genug Commits für den Changelog vorhanden sind
 
       - name: Get Commit Messages
         id: commit_messages
@@ -68,14 +68,17 @@ jobs:
             git log $PREV_TAG..HEAD --pretty=format:"- %s" > commits.txt
           fi
 
-          # Ensure at least one line exists in the commit message file
+          # Sicherstellen, dass mindestens eine Zeile existiert
           if [ ! -s commits.txt ]; then
             echo "- No commits found for this release." > commits.txt
           fi
 
-          echo "commit_body<<EOF" >> "$GITHUB_ENV"
-          cat commits.txt >> "$GITHUB_ENV"
-          echo "EOF" >> "$GITHUB_ENV"
+          # Korrekte Art, mehrzeilige Variablen zu setzen
+          {
+            echo "commit_body<<EOF"
+            cat commits.txt
+            echo "EOF"
+          } >> "$GITHUB_ENV"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
