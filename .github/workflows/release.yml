@@ -31,17 +31,24 @@ jobs:
           echo "Current Version: ${{ env.version }}"
           if [ "$PREV_VERSION" != "${{ env.version }}" ]; then
             echo "changed=true" >> $GITHUB_ENV
+            echo "changed=true" >> $GITHUB_OUTPUT
           else
             echo "changed=false" >> $GITHUB_ENV
+            echo "changed=false" >> $GITHUB_OUTPUT
           fi
 
   create-release:
     needs: check-version
-    if: ${{ needs.check-version.outputs.changed == 'true' }}  # Only run if the version changed
+    if: ${{ needs.check-version.outputs.changed == 'true' }}  # Fixed condition
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      - name: Debug Outputs
+        run: |
+          echo "changed=${{ needs.check-version.outputs.changed }}"
+          echo "version=${{ needs.check-version.outputs.version }}"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
