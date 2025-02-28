@@ -143,7 +143,7 @@ asyncio.run_coroutine_threadsafe(process_queue(), loop)
 worker_task = asyncio.run_coroutine_threadsafe(process_queue(), loop)
 
 # Store version in a variable (or load from a config file)
-VERSION = "1.2.0"
+VERSION = "1.3.0"
 
 # Define fixed tags for buttons
 BUTTON_TAGS = {
