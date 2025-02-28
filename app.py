@@ -1,61 +1,11 @@
-import logging.handlers
+import logging.handlers, asyncio, threading, requests, subprocess
 from flask import Flask, render_template, request, jsonify, Response, stream_with_context
 import os, logging, sys, signal
-import requests
-import subprocess
-
 from services.ai_api import AI
 from services.paperless_api import PaperlessAPI
 
 # Flask-App-Instanz erstellen
 app = Flask(__name__)
-
-# Store version in a variable (or load from a config file)
-VERSION = "1.2.0"
-
-# Define fixed tags for buttons
-BUTTON_TAGS = {
-    "next": ["-Inbox"],
-    "send_to_ai": ["ai-title, -Inbox"],
-    "investigate": ["check, -Inbox"]
-}
-
-#############################################
-#FUTURE WORK STARTS HERE
-ACCEPTED_DATAFIELDS = {
-                        "title": ""
-                        #,"correspondend": ""
-                        }
-
-#############################################
-
-def stopServer():
-    logging.info("Server is shutting down...")
-    os.kill(os.getpid(), signal.SIGINT)
-
-def refresh_metadata_internal():
-    """ Interne Methode zur Aktualisierung der Metadaten """
-    global api  # Falls api in der Funktion benötigt wird
-
-    taglist = api.get_all_tags()
-    pt = taglist.get(PROCESSING_TAG, None)
-    et = taglist.get(ERROR_TAG, None)
-
-    if not pt:
-        logging.error(f"PROCESSING_TAG {PROCESSING_TAG} not found.")
-        stopServer()
-    if not et:
-        logging.error(f"ERROR_TAG {ERROR_TAG} not found.")
-        stopServer()
-
-    app.config['PROCESSING_TAG'] = pt
-    app.config['ERROR_TAG'] = et
-    app.config['INBOX_TAG'] = INBOX_TAG
-    app.config['TAG_LIST'] = taglist
-    app.config['COR_LIST'] = api.get_all_correspondents()
-    app.config['DOC_LIST'] = api.get_all_documents()
-    app.config['PATH_LIST'] = api.get_all_paths()
-    app.config['TYPE_LIST'] = api.get_all_types()
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', None)
 PAPERLESS_BASE_URL = os.getenv('PAPERLESS_BASE_URL', None)
@@ -68,6 +18,9 @@ ERROR_TAG = os.getenv('ERROR_TAG', 'ai-error')
 INBOX_TAG = os.getenv('INBOX_TAG', 'Inbox')
 DEBUG = os.getenv('DEBUG', 'False')
 
+def stopServer():
+    logging.info("Server is shutting down...")
+    os.kill(os.getpid(), signal.SIGINT)
 
 # Create Logger
 logger = logging.getLogger(__name__)
@@ -108,6 +61,132 @@ logging.basicConfig(
 )
 
 logging.info(f"LogLevel is set to {LOG_LEVEL}")
+
+loop = asyncio.new_event_loop()  # Erstelle einen einzigen Event-Loop
+asyncio.set_event_loop(loop)  # Setze ihn als Standard für alle async Tasks
+request_queue = asyncio.Queue(loop=loop)  # Stelle sicher, dass die Queue mit demselben Loop läuft
+
+def start_loop(loop):
+    asyncio.set_event_loop(loop)
+    loop.run_forever()
+
+# Starte den Event-Loop in einem separaten Thread
+t = threading.Thread(target=start_loop, args=(loop,))
+t.start()
+
+async def process_queue():
+    logging.info("Queue worker started.")
+    while True:
+        try:
+            logging.debug("Waiting for queue item...") 
+            data = await request_queue.get()
+            logging.info(f"Processing request: {data}")
+
+            results = {}
+            for field in data["fields"]:
+                # Holen Sie sich die Schlüssel des field-Objekts
+                keys = list(field.keys())
+                for key in app.config['ACCEPTED_DATAFIELDS']:
+                     if key in keys:
+                         response = ai.getResponse(data["document"]["content"], field[key])
+                         results[key] = response
+            tagname = data.get("tag", None)
+            callTag = app.config['TAG_LIST'].get(tagname,'None')
+            tags = data["document"]['tags']
+            if callTag in tags:
+                tags.remove(callTag)
+                logging.debug(f"Removed Call Tag {tagname}")
+            else:
+                logging.debug(f"Call Tag {tagname} doesn't seem to be correct. It was not assigned to the document with the title '{data['document']['title']}' and the id '{data['document']['id']}'.")
+                return jsonify({
+                    'error': f"Call Tag {tagname} doesn't seem to be correct. It was not assigned to the document with the title '{data['document']['title']}' and the id '{data['document']['id']}'.",
+                    'client_ip': data["client_ip"]
+                }), 400
+
+            results['tags'] = tags
+            success = await api.patch_document(data["document"]["id"], results)
+            #todo addEndTag (error or success)
+
+            if success:
+                logging.debug("Data has been processed successfully!")
+                tags.append(app.config['PROCESSING_TAG'])
+                jsonTags = {}
+                jsonTags['tags'] = tags
+                success = await api.patch_document(data["document"]["id"], jsonTags)
+                if success:
+                    logging.debug("Processing Tag added successfully")
+                return jsonify({
+                    'message': 'Data has been processed successfully!',
+                    'client_ip': data["client_ip"]
+                }), 200
+            else:
+                logging.error(f"Failed to patch document. Status code: {success.status_code}, Response: {success.text}")
+                tags.append(app.config['ERROR_TAG'])
+                jsonTags = {}
+                jsonTags['tags'] = tags
+                success = await api.patch_document(data["document"]["id"], jsonTags)
+                if success:
+                    logging.debug("Error Tag added successfully")
+                return jsonify({
+                    'error': f"Failed to patch document. Status code: {success.status_code}, Response: {success.text}",
+                    'client_ip': data["client_ip"]
+                }), 400    
+
+            request_queue.task_done()
+        except Exception as e:
+            logging.error(f"Error in queue processing: {e}")
+
+# Starte den Worker im globalen Event-Loop
+asyncio.run_coroutine_threadsafe(process_queue(), loop)
+
+# Starte den Worker im neuen Event-Loop
+worker_task = asyncio.run_coroutine_threadsafe(process_queue(), loop)
+
+# Store version in a variable (or load from a config file)
+VERSION = "1.2.0"
+
+# Define fixed tags for buttons
+BUTTON_TAGS = {
+    "next": ["-Inbox"],
+    "send_to_ai": ["ai-title, -Inbox"],
+    "investigate": ["check, -Inbox"]
+}
+
+#############################################
+#FUTURE WORK STARTS HERE
+ACCEPTED_DATAFIELDS = {
+                        "title": ""
+                        #,"correspondend": ""
+                        }
+
+#############################################
+
+# Async-Queue für Anfragen
+request_queue = asyncio.Queue()
+
+def refresh_metadata_internal():
+    """ Interne Methode zur Aktualisierung der Metadaten """
+    global api  # Falls api in der Funktion benötigt wird
+
+    taglist = api.get_all_tags()
+    pt = taglist.get(PROCESSING_TAG, None)
+    et = taglist.get(ERROR_TAG, None)
+
+    if not pt:
+        logging.error(f"PROCESSING_TAG {PROCESSING_TAG} not found.")
+        stopServer()
+    if not et:
+        logging.error(f"ERROR_TAG {ERROR_TAG} not found.")
+        stopServer()
+
+    app.config['PROCESSING_TAG'] = pt
+    app.config['ERROR_TAG'] = et
+    app.config['INBOX_TAG'] = INBOX_TAG
+    app.config['TAG_LIST'] = taglist
+    app.config['COR_LIST'] = api.get_all_correspondents()
+    app.config['DOC_LIST'] = api.get_all_documents()
+    app.config['PATH_LIST'] = api.get_all_paths()
+    app.config['TYPE_LIST'] = api.get_all_types()
 
 if(DEBUG and DEBUG=='True'):
     app.config['DEBUG'] = True
@@ -267,9 +346,6 @@ def document_info(doc_id):
         logging.error(f"Fehler beim Abrufen der Dokumentinformationen: {e}")
         return jsonify({"error": str(e)}), 500
 
-if __name__ == '__main__':
-    app.run(debug=True)
-
 #Just for debugging purposes
 @app.route('/debug_custom', methods=['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'])
 def debug():
@@ -365,8 +441,97 @@ def stream_log():
     
     return Response(stream_with_context(generate()), content_type="text/plain")
 
+@app.route('/debug_queue', methods=['GET'])
+def debug_queue():
+    return jsonify({
+        "queue_size": request_queue.qsize(),
+        "worker_running": worker_task is not None and not worker_task.done()
+    }), 200
+
+@app.route('/api/data3', methods=['POST'])
+async def receive_data3():
+    queue_entry = {
+        "doc_id": "123",
+        "fields": {"title": "Test Title"}
+    }
+
+    logging.info("Adding request to queue...")
+    future = asyncio.run_coroutine_threadsafe(request_queue.put(queue_entry), loop)
+    future.result()  # Blockiert, bis das Element in die Queue aufgenommen wurde
+
+    return jsonify({"message": "Added to queue"}), 200
+
 @app.route('/api/data', methods=['POST'])
 async def receive_data():
+    try:
+        client_ip = request.remote_addr
+        data = request.get_json()
+
+        if not data or not data.get("tag"):
+            # If no call-Tag is given, then  we need to throw an error
+            logging.error("No call-Tag was given. Please hand over the tag, which was used to trigger the webhook")
+            return jsonify({
+                'error': 'Please add a webhook parameter "tag" (without quotes) as key and the tag which was used to trigger the webhook as value',
+                'client_ip': client_ip
+            }), 400
+        if not data or not data.get("url"):
+            # If no document url is given, then  we need to throw an error
+            logging.error("No Document url was given.")
+            return jsonify({
+                'error': 'Please add a webhook parameter "url" (without quotes) as key and "\{doc_url\}" as value',
+                'client_ip': client_ip
+            }), 400
+
+        # Extract the id out of the url
+        url = data.get("url")
+        logging.debug(f"Handling url: {url}")
+        doc_id = url.rstrip('/').split('/')[-1]
+        logging.debug(f"The Document ID is: {doc_id}")
+        document = api.get_document_by_id(doc_id)
+        logging.debug(f"Load document with title {document['title']}")
+        content = document['content']
+        logging.debug(f"Content of the document loaded")
+
+        if not document:
+            logging.error({"error": f"Document {doc_id} not found"})
+            return jsonify({"error": f"Document {doc_id} not found"}), 404
+
+
+        fields = []
+        for field in app.config['ACCEPTED_DATAFIELDS']:
+            logging.debug(f"Check if field {field} was handed over")
+            if data.get(field, None):
+                logging.debug(f"Field {field} was handed over. Asking the AI based on the prompt: {data.get(field)}")
+                fields.append({field:data.get(field)})
+        
+        if len(fields) > 0:
+            # Create Queue-Entry
+            queue_entry = {
+                "document": document,
+                "client_ip": client_ip,
+                "fields": fields,
+                "tag": data.get("tag", None)
+            }
+            # Send to Queue
+            logging.info("Adding request to queue...")
+            future = asyncio.run_coroutine_threadsafe(request_queue.put(queue_entry), loop)
+            future.result()  # Blockiert, bis das Element in die Queue aufgenommen wurde
+            return jsonify({
+                "message": "Request added to processing queue",
+                "queue_length": request_queue.qsize()
+            }), 200
+        else:
+            return jsonify({
+                'error': 'No valid fields have been provided',
+                'client_ip': client_ip
+            }), 400
+
+    except Exception as e:
+        logging.error(f"Error in receive_data: {e}")
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/data2', methods=['POST'])
+async def receive_data2():
     client_ip = request.remote_addr
     data = request.get_json()
     taglist = None
