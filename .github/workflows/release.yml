@@ -3,9 +3,12 @@ name: Create GitHub Release on Version Change
 on:
   push:
     paths:
-      - app.py  # Only trigger the workflow if app.py is modified
+      - app.py
     branches:
-      - main  # Change this to match your main branch
+      - main
+
+permissions:
+  contents: write  # Erforderlich für das Erstellen von Releases
 
 jobs:
   check-version:
@@ -17,38 +20,48 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2  # Fetches the previous commit to compare versions
+          fetch-depth: 0
 
       - name: Extract Version from app.py
         id: get_version
-        run: echo "version=$(grep -oP 'VERSION\s*=\s*\"\K[^\"]+' app.py)" >> $GITHUB_ENV
+        run: |
+          VERSION=$(grep -oP 'VERSION\s*=\s*\"\K[^\"]+' app.py)
+          echo "version=$VERSION" >> "$GITHUB_ENV"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Check if Version Changed
         id: check_version
         run: |
-          PREV_VERSION=$(git show HEAD~1:app.py | grep -oP 'VERSION\s*=\s*"\K[^"]+' || echo "none")
+          PREV_VERSION=$(git show HEAD~1:app.py 2>/dev/null | grep -oP 'VERSION\s*=\s*"\K[^"]+' || echo "none")
+          CURR_VERSION="${{ env.version }}"
+
           echo "Previous Version: $PREV_VERSION"
-          echo "Current Version: ${{ env.version }}"
-          if [ "$PREV_VERSION" != "${{ env.version }}" ]; then
-            echo "changed=true" >> $GITHUB_ENV
+          echo "Current Version: $CURR_VERSION"
+
+          if [ "$PREV_VERSION" != "$CURR_VERSION" ]; then
+            echo "changed=true" >> "$GITHUB_ENV"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           else
-            echo "changed=false" >> $GITHUB_ENV
+            echo "changed=false" >> "$GITHUB_ENV"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
   create-release:
     needs: check-version
-    if: needs.check-version.outputs.changed == 'true'  # Only run if the version changed
+    if: ${{ needs.check-version.outputs.changed == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Holt nur die letzten 2 Commits
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.check-version.outputs.version }}
           name: Release v${{ needs.check-version.outputs.version }}
-          body: "Automatic release based on version change in app.py"
+          body: "tbd"
           draft: false
           prerelease: false
         env:
