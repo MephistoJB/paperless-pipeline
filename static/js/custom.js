@@ -30,20 +30,20 @@ async function renderPdf(docId) {
  * The first document in the list is automatically loaded.
  */
 function loadInboxList() {
-    $.getJSON('/api/inbox_list')
+    $.getJSON('/doc/list_inbox')
         .done(function (inboxDict) {
             $("#pagination").empty(); // Clear existing pagination links
 
             let inboxArray = Object.entries(inboxDict); // Convert object to an array for easier processing
-            if (inboxArray.length > 0) {
-                loadDocument(inboxArray[0][0]); // Automatically load the first document in the inbox
+            if (inboxDict.length > 0) {
+                loadDocument(inboxDict[0]); // Automatically load the first document in the inbox
             } else{
                 loadDocument(-1); //If no Inbox Document is there, present the screen
             }  
 
             // Generate pagination links for each document in the inbox
-            inboxArray.forEach((doc, index) => {
-                let [docId, docName] = doc; // Extract document ID and name
+            inboxDict.forEach((doc, index) => {
+                //let [docId, docName] = doc; // Extract document ID and name
 
                 let pageItem = $('<li class="page-item"></li>'); // Create pagination list item
                 let pageLink = $('<a class="page-link" href="#">' + (index + 1) + '</a>'); // Create clickable link
@@ -51,7 +51,7 @@ function loadInboxList() {
                 // Add click event to load the corresponding document
                 pageLink.click(function (event) {
                     event.preventDefault(); // Prevent default anchor behavior
-                    loadDocument(docId); // Load the selected document
+                    loadDocument(doc); // Load the selected document
                 });
 
                 pageItem.append(pageLink); // Append link to pagination item
@@ -138,7 +138,7 @@ async function loadDocument(docId) {
         }
 
         // Load regular document data
-        const infoResponse = await $.getJSON(`/api/document_info/${docId}`);
+        const infoResponse = await $.getJSON(`/doc/get_info/${docId}`);
 
         // Update document details in the UI
         $('#title').text(infoResponse.title);

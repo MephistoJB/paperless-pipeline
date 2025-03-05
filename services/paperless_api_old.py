@@ -1,8 +1,11 @@
 import logging
 import copy
-import requests
+import asyncio
+#from pypaperless import Paperless
 
 class PaperlessAPI:
+
+
     # Initializes the PaperlessAPI client.
     # Parameters:
     # - api_url (str): Base URL of the Paperless API.
@@ -20,6 +23,7 @@ class PaperlessAPI:
         self._api_url = api_url.rstrip('/')  # Remove trailing slash if present
         self._auth_token = auth_token
         self._headers = {"Authorization": f"Token {self._auth_token}"}
+        #self._paperless = Paperless(api_url.rstrip('/api'), auth_token)
 
     # Checks if the Paperless API is reachable.
     # Returns:
@@ -45,7 +49,7 @@ class PaperlessAPI:
     # - document_id (int): The ID of the document.
     # Returns:
     # - dict: Document details if found, otherwise an empty dictionary.
-    def get_document_by_id(self, document_id):
+    async def get_document_by_id(self, document_id):
         return self.__get_item_by_id("documents", document_id)
 
     # Retrieves a document's thumbnail preview by ID.

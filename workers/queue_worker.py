@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from services.ai_api import AI
-from services.paperless_api import PaperlessAPI
+from services.paperless_api_old import PaperlessAPI
 
 logger = logging.getLogger(__name__)
 request_queue = asyncio.Queue()
