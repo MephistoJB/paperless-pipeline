@@ -1,133 +1,125 @@
-import logging.handlers, asyncio, os, logging, sys, signal, subprocess
-from quart import Quart, current_app, render_template, request, jsonify, Response, stream_with_context,Blueprint
-import httpx
-from services import config
-from services.cache import Cache
-from services.ai_api import AI
-from services.paperless_api_old import PaperlessAPI
-import hypercorn.asyncio
-import asyncio, debugpy
-from routes.documents import documents_bp
-from routes.status import status_bp
-from routes.frontend import frontend_bp
-from routes.processing import process_queue, processing_bp
+import os, sys, logging, asyncio, hypercorn.asyncio, debugpy  # Core libraries and async server
+from quart import Quart, current_app, request, jsonify, Blueprint  # Quart framework imports
+from services import config  # Configuration module
+from services.cache import Cache  # Caching mechanism for API interactions
+from routes.documents import documents_bp  
+from routes.status import status_bp  
+from routes.frontend import frontend_bp  
+from routes.processing import process_queue, processing_bp  
 
-# Quart-App-Instanz erstellen
+# Create a Quart application instance
 app = Quart(__name__)
 
+# Global request queue for handling asynchronous processing
 request_queue = asyncio.Queue()
 
+# Apply configuration settings from the `config` module
 config.setConfig(app)
 
+# Initialize cache with API instance and cache expiration time
 app.config["CACHE"] = Cache(app.config["PAPERLESS_API"], app.config["CACHE_TIME"])
 
-app.register_blueprint(documents_bp)
-app.register_blueprint(status_bp)
-app.register_blueprint(frontend_bp)
-app.register_blueprint(processing_bp)
+# Register application blueprints for different API functionalities
+app.register_blueprint(documents_bp)  
+app.register_blueprint(status_bp)  
+app.register_blueprint(frontend_bp)  
+app.register_blueprint(processing_bp)  
 
+# Event for handling server shutdown gracefully
 shutdown_event = asyncio.Event()
+
+""" 
+Gracefully shuts down the Quart server.
+Logs the shutdown event, sets the shutdown flag, 
+waits briefly for cleanup, and exits the process.
+"""
 async def stopServer():
-    """ Beendet den Quart-Server sauber """
-    logging.info("Server wird heruntergefahren...")
-    shutdown_event.set()  # Signal für Shutdown setzen
-    await asyncio.sleep(1)  # Warte kurz für sauberen Shutdown
-    sys.exit(0)
+    logging.info("Server is shutting down...")
+    shutdown_event.set()  # Set shutdown event flag
+    await asyncio.sleep(1)  # Small delay to allow cleanup
+    sys.exit(0)  # Terminate the process
 
-# Globale Warteschlange für die Verarbeitung
-
+""" 
+Background worker that continuously processes queued requests.
+- Waits for new tasks in `request_queue`
+- Processes each task asynchronously
+- Logs any errors that occur during processing
+"""
 async def background_task():
     logging.info("Starting background queue processor...")
 
     while True:
-        queue_entry = await request_queue.get()  # Wartet, bis ein Eintrag in der Queue ist
+        queue_entry = await request_queue.get()  # Wait until a new request is available
         try:
-            async with app.app_context():
+            async with app.app_context():  # Ensure Quart app context is available
                 logging.info(f"Processing queue entry: {queue_entry}")
-                await process_queue(queue_entry)  # Verarbeitet den Eintrag
+                await process_queue(queue_entry)  # Call the processing function
         except Exception as e:
-            logging.error(f"Error in queue processing: {e}")
+            logging.error(f"Error processing queue entry: {e}")  # Log any errors
         finally:
-            request_queue.task_done()  # Markiert den Task als abgeschlossen
-
-@app.before_serving
-async def init_before_serving():
-    config.checkConfig(app)
-    logging.info("Starte Initialisierung vor Server-Start...")
-    
-    await app.config["PAPERLESS_API"].initialize()
-    app.config["REQUEST_QUEUE"] = request_queue
-    
-    # Starte die Hintergrundaufgabe, wenn der Server gestartet wird
-    app.config["BACKGROUND_TASK"] = asyncio.create_task(background_task())
-    
-    logging.info("Initialisierung abgeschlossen.")
+            request_queue.task_done()  # Mark task as completed
 
 """ 
+Initializes configurations and services before the server starts.
+- Validates application configuration
+- Initializes the PAPERLESS API connection
+- Sets up the global request queue
+- Starts the background queue processor
+"""
+@app.before_serving
+async def init_before_serving():
+    config.checkConfig(app)  # Validate configuration
+    logging.info("Starting pre-server initialization...")
 
-async def refresh_metadata_internal():
-    global api  # Falls api in der Funktion benötigt wird
+    await app.config["PAPERLESS_API"].initialize()  # Ensure the API is ready
+    app.config["REQUEST_QUEUE"] = request_queue  # Store the request queue in app config
 
-    logging.info("Aktualisiere Metadaten von Paperless...")
+    # Start the background queue processing task
+    app.config["BACKGROUND_TASK"] = asyncio.create_task(background_task())
 
-    taglist = await api.get_all_tags()
-    pt = taglist.get(PROCESSING_TAG, None)
-    et = taglist.get(ERROR_TAG, None)
+    logging.info("Pre-server initialization complete.")
 
-    if not pt:
-        logging.error(f"PROCESSING_TAG {PROCESSING_TAG} nicht gefunden.")
-        await stopServer()
-    if not et:
-        logging.error(f"ERROR_TAG {ERROR_TAG} nicht gefunden.")
-        await stopServer()
-
-    app.config['PROCESSING_TAG'] = pt
-    app.config['ERROR_TAG'] = et
-    app.config['INBOX_TAG'] = INBOX_TAG
-    app.config['TAG_LIST'] = taglist
-    app.config['COR_LIST'] = await api.get_all_correspondents()
-    app.config['DOC_LIST'] = await api.get_all_documents()
-    app.config['PATH_LIST'] = await api.get_all_paths()
-    app.config['TYPE_LIST'] = await api.get_all_types()
-
-    logging.info("Metadaten wurden erfolgreich aktualisiert.")"""
-
+""" 
+Main entry point for starting the Quart application.
+- Configures logging
+- Enables remote debugging if `DEBUG=True`
+- Initializes the application
+- Starts the Hypercorn server
+"""
 async def main():
-    debug = os.getenv('DEBUG', 'False')
-    logLevel = ""
-    if debug:
-        logLevel = "DEBUG"
-    else:
-        logLevel = "INFO"
-    # Logger konfigurieren
-    logging.basicConfig(level=getattr(logging, logLevel, logging.INFO),
-                    format="%(asctime)s [%(levelname)s] %(message)s",
-                    handlers=[logging.StreamHandler(sys.stdout)])
-    
+    debug = os.getenv('DEBUG', 'False')  # Fetch debug mode from environment variables
+    logLevel = "DEBUG" if debug == 'True' else "INFO"  # Set log level accordingly
+
+    # Configure logging to output messages to standard output
+    logging.basicConfig(
+        level=getattr(logging, logLevel, logging.INFO),
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)]
+    )
+
     logging.info(f"LogLevel is set to {logLevel}")
 
-    # Debugpy nur starten, wenn DEBUG=True
-    if logLevel:  # Falls nicht in config, Default = True
-        logging.info("Starte Debugpy...")
-        debugpy.listen(("0.0.0.0", 5679))  # Debugger läuft auf Port 5679
-        logging.info("Warte auf Debugger-Verbindung...")
-        debugpy.wait_for_client()  # Hält an, bis sich ein Debugger verbindet
+    # Enable remote debugging if debug mode is active
+    if debug == 'True':
+        logging.info("Starting Debugpy...")
+        debugpy.listen(("0.0.0.0", 5679))  # Open debugging port 5679
+        logging.info("Waiting for debugger connection...")
+        debugpy.wait_for_client()  # Pause execution until debugger is attached
 
-    """ Initialisiert die App und startet den Server """
-    logging.info("Starte Initialisierung...")
-    
-    await init_before_serving()  # Hier manuell aufrufen
-    logging.info("Initialisierung abgeschlossen, starte Server...")
+    logging.info("Starting application initialization...")
 
+    await init_before_serving()  # Run pre-start initialization tasks
+
+    logging.info("Initialization complete, starting server...")
+
+    # Configure and start the Hypercorn web server
     conf = hypercorn.Config()
-    conf.bind = ["0.0.0.0:5000"]  # Port anpassen falls nötig
-    conf.accesslog = "-"  # Aktiviert das Logging für Hypercorn
-    conf.errorlog = "-"  # Fehlerlog aktivieren
+    conf.bind = ["0.0.0.0:5000"]  # Set the server to listen on port 5000
+    conf.accesslog = "-"  # Enable access logging
+    conf.errorlog = "-"  # Enable error logging
 
-    await hypercorn.asyncio.serve(app, conf)
+    await hypercorn.asyncio.serve(app, conf)  # Start Quart application with Hypercorn
 
+# Ensure the application runs when executed as a script
 if __name__ == '__main__':
-    asyncio.run(main())  # Nutze eine eigene `main()`-Funktion
-
-#if __name__ == '__main__':
-#    asyncio.run(hypercorn.asyncio.serve(app, config=hypercorn.Config()))
+    asyncio.run(main())  # Run the `main()` function to start the server

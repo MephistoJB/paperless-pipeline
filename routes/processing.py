@@ -1,106 +1,99 @@
+import logging, asyncio  # Consolidating imports
 from quart import Blueprint, request, jsonify, current_app
-import httpx
-import logging, asyncio
+from routes.documents import set_tag  # Importing required function
 
-from routes.documents import set_tag
-
+# Blueprint for processing AI-based document requests
 processing_bp = Blueprint("processing", __name__)
 
-"""@app.route('/api/data', methods=['POST'])
-async def receive_data():
+"""
+Processes a queued document request using AI and updates the document accordingly.
+
+Parameters:
+- data (dict): A dictionary containing:
+    - "document" (object): The document to be processed.
+    - "fields" (list): A list of fields to extract information from using AI.
+    - "tag" (str, optional): A tag associated with the document.
+"""
+async def process_queue(data: dict) -> None:
     try:
-        client_ip = request.remote_addr
-        data = await request.get_json()
+        if not data:
+            return  # Skip processing if data is empty
 
-        if not data or "tag" not in data or "url" not in data:
-            return jsonify({'error': 'Missing required parameters'}), 400
+        logging.info(f"Processing request: {data}")
 
-        doc_id = data["url"].rstrip('/').split('/')[-1]
-        async with httpx.AsyncClient() as client:
-            response = await client.get(f"{app.config['PAPERLESS_BASE_URL']}/documents/{doc_id}/",
-                                        headers={"Authorization": f"Token {app.config['AUTH_TOKEN']}"})
+        doc = data.get("document")  # Extract the document object
+        if not doc:
+            logging.error("Document object is missing in the data.")
+            return
+        
+        results = []
+        ai = current_app.config["AI_API"]  # Get AI API configuration
 
-        if response.status_code != 200:
-            return jsonify({'error': f"Document {doc_id} not found"}), 404
+        # Iterate through fields and process AI responses
+        for field in data["fields"]:
+            for key in current_app.config['ACCEPTED_DATAFIELDS']:
+                if key in field:
+                    response = ai.getResponse(doc.content, field[key])  # AI processing
+                    results.append({"key": key, "value": response})
 
-        document = response.json()
-        fields = [{field: data.get(field)} for field in app.config['ACCEPTED_DATAFIELDS'] if data.get(field)]
-
-        if fields:
-            await request_queue.put({"document": document, "client_ip": client_ip, "fields": fields, "tag": data["tag"]})
-            return jsonify({"message": "Request added to queue", "queue_length": request_queue.qsize()}), 200
-        else:
-            return jsonify({'error': 'No valid fields provided'}), 400
-
-    except Exception as e:
-        logging.error(f"Error in receive_data: {e}")
-        return jsonify({"error": str(e)}), 500"""
-
-async def process_queue(data):
-        try:
-            if not data:
-                return # Falls Daten leer sind, einfach überspringen
+        # If AI processing generated results, update the document
+        if results:
+            for result in results:
+                setattr(doc, result["key"], result["value"])  # Dynamically set attributes
             
-            logging.info(f"Processing request: {data}")
-            doc = data.get("document")
-            results = []
+            success = await doc.update()  # Save document changes
+            logging.info(f"Document {doc.id} updated: {success}")
 
-            ai = current_app.config["AI_API"]
+        # Handle tagging if a tag is provided
+        tagname = data.get("tag")
+        if tagname:
+            callTag = await current_app.config['CACHE'].getTagIDByName(tagname)
+            if callTag in doc.tags:
+                await set_tag(doc.id, [f"-{tagname}"])  # Remove existing tag
+                logging.debug(f"Removed Call Tag {tagname}")
 
-            # Verarbeitung durch AI
-            for field in data["fields"]:
-                for key in current_app.config['ACCEPTED_DATAFIELDS']:
-                    if key in field:
-                        response = ai.getResponse(doc.content, field[key])
-                        results.append({"key": key, "value": response})
-
-            # Falls Ergebnisse existieren, speichere sie im Dokument
-            if results:
-                for result in results:
-                    setattr(doc, result["key"], result["value"])
-
-                success = await doc.update()
-                logging.info(f"Document {doc.id} updated: {success}")
-
-            # Tags aktualisieren
-            tagname = data.get("tag", None)
-            if tagname:
-                callTag = await current_app.config['CACHE'].getTagIDByName(tagname)
-                if callTag in doc.tags:
-                    await set_tag(doc.id, [f"-{tagname}"])
-                    logging.debug(f"Removed Call Tag {tagname}")
-
-            # Erfolg oder Fehler-Tag setzen
-            if success:
-                await set_tag(doc.id, [current_app.config['PROCESSING_TAG']])
-            else:
-                await set_tag(doc.id, [current_app.config['ERROR_TAG']])
-
-        except Exception as e:
-            logging.error(f"Error in queue processing: {e}")
+        # Assign success or error tag based on processing outcome
+        if success:
+            await set_tag(doc.id, [current_app.config['PROCESSING_TAG']])
+        else:
             await set_tag(doc.id, [current_app.config['ERROR_TAG']])
 
+    except Exception as e:
+        logging.error(f"Error in queue processing: {e}")
+        await set_tag(doc.id, [current_app.config['ERROR_TAG']])  # Assign error tag in case of failure
+
+"""
+Handles incoming AI processing requests via HTTP POST.
+
+Returns:
+- JSON response with success message if the request is valid.
+- JSON response with an error message if the request is invalid or processing fails.
+"""
 @processing_bp.route('/ai/request', methods=['POST'])
 async def receive_data():
     try:
-        api = current_app.config["PAPERLESS_API"]
-        client_ip = request.remote_addr
-        data = await request.get_json()
+        api = current_app.config["PAPERLESS_API"]  # Get API configuration
+        client_ip = request.remote_addr  # Extract client IP
+        data = await request.get_json()  # Parse JSON request body
 
+        # Validate required fields in the request
         if not data or not data.get("tag"):
             return jsonify({'error': 'Missing required "tag" parameter'}), 400
         if not data or not data.get("url"):
             return jsonify({'error': 'Missing required "url" parameter'}), 400
 
+        # Extract document ID from the provided URL
         doc_id = data["url"].rstrip('/').split('/')[-1]
-        document = await api.documents(doc_id)
+        document = await api.documents(doc_id)  # Fetch document details
 
         if not document:
             return jsonify({"error": f"Document {doc_id} not found"}), 404
 
+        # Extract fields for processing based on the accepted data fields
         fields = [{field: data[field]} for field in current_app.config['ACCEPTED_DATAFIELDS'] if field in data]
 
         if fields:
+            # Create a queue entry for asynchronous processing
             queue_entry = {
                 "document": document,
                 "client_ip": client_ip,
@@ -109,7 +102,7 @@ async def receive_data():
             }
             logging.info(f"Adding request for Document {doc_id} to queue...")
 
-            asyncio.create_task(current_app.config["REQUEST_QUEUE"].put(queue_entry))
+            asyncio.create_task(current_app.config["REQUEST_QUEUE"].put(queue_entry))  # Add task to queue
 
             return jsonify({"message": "Request added to processing queue"}), 200
         else:
@@ -117,4 +110,4 @@ async def receive_data():
 
     except Exception as e:
         logging.error(f"Error in receive_data: {e}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e)}), 500  # Return error response in case of failure
