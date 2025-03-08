@@ -119,19 +119,21 @@ async def set_tag(doc_id, tag_names):
 """
 API endpoint to update document tags via a POST request.
 
+Parameters:
+- doc_id (int): The unique identifier of the document.
+
 Expected JSON payload:
-- "doc_id" (int): The ID of the document.
 - "tag_names" (list of str): A list of tag names to assign or remove.
 
 Returns:
 - 200 OK if tags were successfully updated.
 - 500 Internal Server Error if an issue occurred.
 """
-@documents_bp.route('/doc/set_tag', methods=['POST'])
-async def tag_document():
+@documents_bp.route('/doc/set_tag/<int:doc_id>', methods=['POST'])
+async def tag_document(doc_id):
     data = await request.get_json()  # Parse incoming JSON request
-    doc_id = data.get("doc_id")  # Extract document ID
-    tag_names = data.get("tag_names", [])  # Extract tag names, default to empty list
+    #doc_id = data.get("doc_id")  # Extract document ID
+    tag_names = data.get("tags", [])  # Extract tag names, default to empty list
 
     success = await set_tag(doc_id, tag_names)  # Call set_tag function asynchronously
 
