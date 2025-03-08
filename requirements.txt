@@ -5,3 +5,5 @@ quart
 hypercorn
 httpx
 debugpy
+pytest
+pytest-asyncio
