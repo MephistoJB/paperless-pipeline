@@ -1,14 +1,23 @@
-from flask import Blueprint, jsonify, Response
-from services.paperless_api import PaperlessAPI
-import requests
+from quart import Blueprint, jsonify, render_template, current_app  # Import necessary modules
 
+# Blueprint for handling frontend routes
 frontend_bp = Blueprint("frontend", __name__)
 
-@frontend_bp.route('/')
-def index():
-    return render_template("index.html", version=VERSION, button_tags=BUTTON_TAGS)
+"""
+Handles the root route and renders the main frontend page.
 
-@frontend_bp.route('/refreshMetadata', methods=['GET'])
+Returns:
+- HTML page (index.html) with injected version number and button tags.
+"""
+@frontend_bp.route('/')
+async def index():
+    return await render_template(
+        "index.html",
+        version=current_app.config["VERSION"],
+        button_tags=current_app.config["BUTTON_TAGS"]
+    )
+
+'''@frontend_bp.route('/refreshMetadata', methods=['GET'])
 def refreshMetaData():
     refresh_metadata_internal()
-    return jsonify({"message": "Metadata refreshed successfully"}), 200
+    return jsonify({"message": "Metadata refreshed successfully"}), 200'''

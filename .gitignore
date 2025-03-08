@@ -172,3 +172,4 @@ cython_debug/
 todo
 ollama-debug.env
 test.py
+.vscode/launch.json

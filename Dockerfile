@@ -1,5 +1,5 @@
 # Base Image
-FROM python:3.9-slim AS base
+FROM python:3.11-slim AS base
 
 # Set the working directory
 WORKDIR /app
@@ -15,21 +15,21 @@ COPY . .
 ####### DEBUG ###########
 FROM base AS debug
 
+#EXPOSE 5000
+#EXPOSE 5679
 # Install debugging tools
-RUN pip install debugpy
-RUN apt update && apt install -y nano curl iputils-ping poppler-utils
+RUN apt update && apt install -y nano curl iputils-ping poppler-utils procps
 
-# Debugging command
-CMD ["python", "-m", "debugpy", "--listen", "0.0.0.0:5679", "--wait-for-client", "-m", "flask", "run", "-h", "0.0.0.0", "-p", "5000"]
+# Debugging command for Quart
+#CMD ["python", "-Xfrozen_modules=off", "-m", "debugpy", "--listen", "0.0.0.0:5679", "--wait-for-client", "-m", "hypercorn", "app:app", "--bind", "0.0.0.0:5000", "--reload"]
+#CMD ["python", "-Xfrozen_modules=off", "app.py"]
+CMD ["python", "-Xfrozen_modules=off", "test.py"]
 
 ###### PRODUCTION ########
 FROM base AS prod
 
-# Install Gunicorn for production
-RUN pip install gunicorn
-
-# Expose the port Flask runs on
+# Expose the port Quart runs on
 EXPOSE 5000
 
-# Run the app with Gunicorn in production
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "app:app"]
+# Run the app with Hypercorn in production
+CMD ["hypercorn", "app:app", "--bind", "0.0.0.0:5000", "--workers", "4"]

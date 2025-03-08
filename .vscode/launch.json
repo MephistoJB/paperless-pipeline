@@ -1,11 +1,19 @@
 {
   "version": "0.2.0",
   "configurations": [
+
     {
       "name": "Python-Debugger: Aktuelle Datei",
       "type": "debugpy",
       "request": "launch",
       "program": "${file}",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Python-Debugger: app.py",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "/app/app.py",
       "console": "integratedTerminal"
     },
     {
@@ -20,6 +28,14 @@
       ],
       "port": 5679,
       "host": "127.0.0.1",
+      "justMyCode": false,
+      //"preLaunchTask": "restart-app"
+    },
+    {
+      "type": "chrome",
+      "name": "localhost:4000",
+      "request": "launch",
+      "url": "http://localhost:4000"
     }
   ]
 }

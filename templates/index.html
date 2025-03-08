@@ -1,156 +1,129 @@
 <!DOCTYPE html>
 <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Main Page</title>
-        <link href="static/css/bootstrap.min.css" rel="stylesheet">
-        <link href="static/css/custom.css" rel="stylesheet">
-    </head>
-    <body>
-        <!-- Toast Container -->
-        <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
-            <!-- Erfolgsmeldung -->
-            <div id="toastSuccess" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="polite" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        <i class="bi bi-check-circle"></i> <span id="toastSuccessMessage">Erfolgreich ausgeführt!</span>
-                    </div>
-                    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Main Page</title>
+    <link href="static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="static/css/custom.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Toast Container -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1050;">
+        <!-- Success Toast -->
+        <div id="toastSuccess" class="toast align-items-center text-bg-success border-0" role="alert" aria-live="polite" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi bi-check-circle"></i> <span id="toastSuccessMessage">Successfully executed!</span>
                 </div>
-            </div>
-
-            <!-- Fehlermeldung -->
-            <div id="toastError" class="toast align-items-center text-bg-danger border-0" role="alert" aria-live="polite" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">
-                        <i class="bi bi-exclamation-triangle"></i> <span id="toastErrorMessage">Ein Fehler ist aufgetreten!</span>
-                    </div>
-                    <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-                </div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
         </div>
-        <div class="container-fluid">
-            <div class="row">
-                <!-- Sidebar -->
-                <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-dark sidebar vh-100 d-flex flex-column position-fixed">
-                    <div class="position-sticky d-flex flex-column flex-grow-1">
-                        <!-- Sidebar Header with toggle button -->
-                        <div class="sidebar-header d-flex justify-content-between align-items-center px-3 py-2">
-                            <h3 class="text-white sidebar-text">Menu</h3>
-                            <button id="sidebarToggle" class="btn btn-outline-light">☰</button>
-                        </div>
+        <!-- Error Toast -->
+        <div id="toastError" class="toast align-items-center text-bg-danger border-0" role="alert" aria-live="polite" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi bi-exclamation-triangle"></i> <span id="toastErrorMessage">An error occurred!</span>
+                </div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
 
-                        <!-- Sidebar Menu -->
-                        <ul class="nav flex-column flex-grow-1">
-                            <li class="nav-item">
-                                <a class="nav-link text-white active" href="#" title="Home">
-                                    <i class="bi bi-house"></i> <span class="sidebar-text">Home</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link text-white" href="#" id="navRefresh">Refresh</a>
-                            </li>
-                        </ul>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-dark sidebar vh-100 d-flex flex-column position-fixed">
+                <div class="position-sticky d-flex flex-column flex-grow-1">
+                    <div class="sidebar-header d-flex justify-content-between align-items-center px-3 py-2">
+                        <h3 class="text-white sidebar-text">Menu</h3>
+                        <button id="sidebarToggle" class="btn btn-outline-light">☰</button>
                     </div>
+                    <ul class="nav flex-column flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-white active" href="#" title="Home">
+                                <i class="bi bi-house"></i> <span class="sidebar-text">Home</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="#" id="navRefresh">Refresh</a>
+                        </li>
+                    </ul>
+                </div>
+                <div class="position-absolute bottom-0 w-100 text-center py-2 border-top border-secondary">
+                    <small class="text-white">Version {{ version }}</small>
+                </div>
+            </nav>
 
-                    <!-- Footer with version number (fixed at the bottom) -->
-                    <div class="position-absolute bottom-0 w-100 text-center py-2 border-top border-secondary">
-                        <small class="text-white">Version {{ version }}</small>
-                    </div>
+            <!-- Main Content -->
+            <main id="content" class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <nav class="navbar navbar-light">
+                    <button class="btn btn-primary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar">
+                        ☰ Menu
+                    </button>
                 </nav>
 
-                <!-- Main Content Area -->
-                <main id="content" class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                    <!-- Mobile Menu Button -->
-                    <nav class="navbar navbar-light">
-                        <button class="btn btn-primary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar">
-                            ☰ Menu
-                        </button>
-                    </nav>
-
-                    <div class="container-fluid">
-                        <div class="row h-100">
-                            <div class="col-lg-auto col-sm-12" id="main-area">
-                                <div class="card" id="pdf-container" style="position: relative;">
-                                    <!-- Placeholder before PDF loads -->
-                                    <div id="pdf-placeholder" class="d-flex align-items-center justify-content-center"
-                                         style="width:100%; height:500px; background-color:#f8f9fa;">
-                                        <div class="spinner-border text-secondary" role="status">
-                                            <span class="visually-hidden">Loading...</span>
-                                        </div>
-                                    </div>
-
-                                    <!-- Actual image of the PDF (hidden until loaded) -->
-                                    <img id="pdfImage" src="#" alt="PDF as Image" class="img-fluid" style="display:none;">
-                                </div>
-                            </div>
-
-                            <div class="col-lg-3 col-sm-12" id="control-area">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <!-- Document metadata display -->
-                                        <ul class="list-group list-group-flush">
-                                            <li class="list-group-item d-flex justify-content-between align-items-start">
-                                                <div class="me-auto">
-                                                    <div class="fw-bold">Title</div>
-                                                    <p class="ms-2" id="title">Content for list item</p>
-                                                </div>
-                                            </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-start">
-                                                <div class="me-auto">
-                                                    <div class="fw-bold">Correspondent</div>
-                                                    <p class="ms-2" id="cor">Content for list item</p>
-                                                </div>
-                                            </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-start">
-                                                <div class="me-auto">
-                                                    <div class="fw-bold">Document Type</div>
-                                                    <p class="ms-2" id="type">Content for list item</p>
-                                                </div>
-                                            </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-start">
-                                                <div class="me-auto">
-                                                    <div class="fw-bold">Storage Path</div>
-                                                    <p class="ms-2" id="path">Content for list item</p>
-                                                </div>
-                                            </li>
-                                            <li class="list-group-item d-flex justify-content-between align-items-start">
-                                                <div class="me-auto">
-                                                    <div class="fw-bold">Tags</div>
-                                                    <p class="ms-2" id="tags">Content for list item</p>
-                                                </div>
-                                            </li>
-                                        </ul>
+                <div class="container-fluid">
+                    <div class="row h-100">
+                        <div class="col-lg-auto col-sm-12" id="main-area">
+                            <div class="card" id="pdf-container" style="position: relative;">
+                                <div id="pdf-placeholder" class="d-flex align-items-center justify-content-center"
+                                     style="width:100%; height:500px; background-color:#f8f9fa;">
+                                    <div class="spinner-border text-secondary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
                                     </div>
                                 </div>
-
-                                <!-- Control buttons -->
-                                <div class="controls mt-4" id="control-area">
-                                    <button id="btnNext" class="btn btn-primary mr-2"data-tags="{{ button_tags.next | join(',') }}">Next</button>
-                                    <button id="btnSendToAI" class="btn btn-primary mr-2"data-tags="{{ button_tags.send_to_ai | join(',') }}">Send to AI</button>
-                                    <button id="btnInvestigate" class="btn btn-secondary" data-tags="{{ button_tags.investigate | join(',') }}">Investigate</button>
-                                </div>
+                                <img id="pdfImage" src="#" alt="PDF as Image" class="img-fluid" style="display:none;">
                             </div>
                         </div>
 
-                        <!-- Pagination Section -->
-                        <div class="row">
-                            <nav aria-label="Page navigation">
-                                <ul id="pagination" class="pagination">
-                                    <!-- Dynamic entries will be added via jQuery -->
-                                </ul>
-                            </nav>
+                        <div class="col-lg-3 col-sm-12" id="control-area">
+                            <div class="card">
+                                <div class="card-body">
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item">
+                                            <strong>Title:</strong> <span id="title"></span>
+                                        </li>
+                                        <li class="list-group-item">
+                                            <strong>Correspondent:</strong> <span id="cor"></span>
+                                        </li>
+                                        <li class="list-group-item">
+                                            <strong>Document Type:</strong> <span id="type"></span>
+                                        </li>
+                                        <li class="list-group-item">
+                                            <strong>Storage Path:</strong> <span id="path"></span>
+                                        </li>
+                                        <li class="list-group-item">
+                                            <strong>Tags:</strong> <span id="tags"></span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Control Buttons -->
+                            <div class="controls mt-4">
+                                <button id="btnNext" class="btn btn-primary mr-2">Next</button>
+                                <button id="btnSendToAI" class="btn btn-primary mr-2">Send to AI</button>
+                                <button id="btnInvestigate" class="btn btn-secondary">Investigate</button>
+                            </div>
                         </div>
                     </div>
-                </main>
-            </div>
-        </div>
 
-        <!-- JavaScript Libraries -->
-        <script src="{{ url_for('static', filename='js/jquery-3.5.1.min.js') }}"></script>
-        <script src="{{ url_for('static', filename='js/popper.min.js') }}"></script>
-        <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
-        <script src="{{ url_for('static', filename='js/custom.js') }}"></script>
-    </body>
+                    <!-- Pagination -->
+                    <div class="row">
+                        <nav aria-label="Page navigation">
+                            <ul id="pagination" class="pagination"></ul>
+                        </nav>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/jquery-3.5.1.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/popper.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/custom.js') }}"></script>
+</body>
 </html>

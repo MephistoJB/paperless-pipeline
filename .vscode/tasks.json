@@ -1,0 +1,15 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "restart-app",
+      "type": "shell",
+      "command": "docker exec -it paperless-ngx-ollamaprocessor-ollamaprocessor-1 pkill -f app.py || true && docker exec -it paperless-ngx-ollamaprocessor-ollamaprocessor-1 python3 /app/app.py",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    }
+  ]
+}
