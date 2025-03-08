@@ -46,6 +46,37 @@ function showToast(type, message, duration = 2000) {
     toast.show();
 }
 
+/**
+ * Sends a request to tag a document with the specified tags.
+ *
+ * @param {number} docId - The ID of the document to be tagged.
+ * @param {Array} tags - An array of tag names to assign to the document.
+ */
+async function tagDocument(docId, tags) {
+    try {
+        if (!docId || tags.length === 0) {
+            console.warn("tagDocument called with invalid parameters:", docId, tags);
+            return;
+        }
+
+        console.log(`Tagging document ${docId} with tags:`, tags);
+
+        const response = await fetch(`/doc/set_tag/${docId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tags }),
+        });
+
+        if (!response.ok) throw new Error(`Failed to tag document: ${response.statusText}`);
+
+        showToast("success", "Document tagged successfully.");
+        loadInboxList();  // Reloads inbox to reflect changes
+    } catch (error) {
+        console.error("Error tagging document:", error);
+        showToast("error", "Error tagging document.");
+    }
+}
+
 // Loads both document information and the corresponding PDF preview
 async function loadDocument(docId) {
     try {
@@ -70,9 +101,23 @@ async function loadDocument(docId) {
         });
 
         // Button click event handlers
-        $("#btnNext").off("click").on("click", () => tagDocument(docId, $("#btnNext").data("tags").split(",")));
-        $("#btnSendToAI").off("click").on("click", () => tagDocument(docId, $("#btnSendToAI").data("tags").split(",")));
-        $("#btnInvestigate").off("click").on("click", () => tagDocument(docId, $("#btnInvestigate").data("tags").split(",")));
+        //$("#btnNext").off("click").on("click", () => tagDocument(docId, $("#btnNext").data("tags").split(",")));
+        //$("#btnSendToAI").off("click").on("click", () => tagDocument(docId, $("#btnSendToAI").data("tags").split(",")));
+        //$("#btnInvestigate").off("click").on("click", () => tagDocument(docId, $("#btnInvestigate").data("tags").split(",")));
+        $("#btnNext").off("click").on("click", function () {
+            const tags = $(this).attr("data-tags") || "";
+            tagDocument(docId, tags.split(","));
+        });
+        
+        $("#btnSendToAI").off("click").on("click", function () {
+            const tags = $(this).attr("data-tags") || "";
+            tagDocument(docId, tags.split(","));
+        });
+        
+        $("#btnInvestigate").off("click").on("click", function () {
+            const tags = $(this).attr("data-tags") || "";
+            tagDocument(docId, tags.split(","));
+        });
 
         // Load and display the PDF preview
         const pdfImage = $('#pdfImage').hide();
@@ -81,7 +126,13 @@ async function loadDocument(docId) {
         if (infoResponse.thumbnail_url) {
             pdfImage.attr('src', infoResponse.thumbnail_url).off('load error').on({
                 'load': function () {
-                    placeholder.hide();
+                    placeholder.hide().css({
+                        "display": "none!important",
+                        "visibility": "hidden!important",
+                        "opacity": "0",
+                        "height": "0",
+                        "width": "0"
+                    });
                     pdfImage.show();
                     updatePdfImageHeight();
                 },

@@ -23,13 +23,11 @@ RUN apt update && apt install -y nano curl iputils-ping poppler-utils procps
 # Debugging command for Quart
 #CMD ["python", "-Xfrozen_modules=off", "-m", "debugpy", "--listen", "0.0.0.0:5679", "--wait-for-client", "-m", "hypercorn", "app:app", "--bind", "0.0.0.0:5000", "--reload"]
 #CMD ["python", "-Xfrozen_modules=off", "app.py"]
-CMD ["python", "-Xfrozen_modules=off", "test.py"]
+CMD ["python", "-Xfrozen_modules=off", "app.py"]
 
 ###### PRODUCTION ########
 FROM base AS prod
 
 # Expose the port Quart runs on
 EXPOSE 5000
-
-# Run the app with Hypercorn in production
-CMD ["hypercorn", "app:app", "--bind", "0.0.0.0:5000", "--workers", "4"]
+CMD ["python", "-Xfrozen_modules=off", "app.py"]

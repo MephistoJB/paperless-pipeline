@@ -17,13 +17,13 @@ DEBUG = os.getenv('DEBUG', 'False')
 CACHE_TIME = int(os.getenv('CACHE_TIME', 60))  # Ensure CACHE_TIME is an integer
 
 # Define application version
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 
 # Define fixed tags for button actions
 BUTTON_TAGS = {
-    "next": ["-Inbox"],
-    "send_to_ai": ["ai-title, -Inbox"],
-    "investigate": ["check, -Inbox"]
+    "next": "-Inbox",
+    "send_to_ai": "ai-title, -Inbox",
+    "investigate": "check, -Inbox"
 }
 
 # Define accepted data fields (future work can extend this)
