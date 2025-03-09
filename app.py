@@ -87,12 +87,17 @@ async def main():
     debug = os.getenv('DEBUG', 'False')  # Fetch debug mode from environment variables
     logLevel = "DEBUG" if debug == 'True' else "INFO"  # Set log level accordingly
 
-    # Configure logging to output messages to standard output
+    # Config the Root-Logger
     logging.basicConfig(
         level=getattr(logging, logLevel, logging.INFO),
         format="%(asctime)s [%(levelname)s] %(message)s",
         handlers=[logging.StreamHandler(sys.stdout)]
     )
+
+    # Set the LogLevel for the frameworks
+    logging.getLogger("quart").setLevel(getattr(logging, logLevel, logging.INFO))
+    logging.getLogger("hypercorn").setLevel(getattr(logging, logLevel, logging.INFO))
+    logging.getLogger("asyncio").setLevel(getattr(logging, logLevel, logging.INFO))
 
     logging.info(f"LogLevel is set to {logLevel}")
 

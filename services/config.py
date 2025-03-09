@@ -16,7 +16,7 @@ DEBUG = os.getenv('DEBUG', 'False')
 CACHE_TIME = int(os.getenv('CACHE_TIME', 60))  # Ensure CACHE_TIME is an integer
 
 # Define application version
-VERSION = "1.4.2"
+VERSION = "1.4.3"
 
 # Define fixed tags for button actions
 BUTTON_TAGS = {
@@ -44,6 +44,10 @@ Sets:
 - Various configuration values such as AI settings, API endpoints, and debugging options.
 """
 def setConfig(app):
+
+    # Load environment variables for configuration
+    PAPERLESS_BASE_URL = os.getenv('PAPERLESS_BASE_URL', None)
+
     if PAPERLESS_BASE_URL:
         # Remove possible trailing missconfig "/", "/api/" oder "/api"
         PAPERLESS_BASE_URL = re.sub(r'(/api/|/api|/)$', '', PAPERLESS_BASE_URL)
