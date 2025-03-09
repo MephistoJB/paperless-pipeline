@@ -46,7 +46,7 @@ services:
     environment:
       PAPERLESS_REDIS: redis://broker:6379
   ollamaprocessor:
-    image: rest:prod
+    image: rest:debug
     restart: unless-stopped
     volumes:
       - type: bind

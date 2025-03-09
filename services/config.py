@@ -1,5 +1,4 @@
-import logging
-import os
+import logging, os, re, asyncio
 from services.ai_api import AI
 from pypaperless import Paperless
 
@@ -45,6 +44,10 @@ Sets:
 - Various configuration values such as AI settings, API endpoints, and debugging options.
 """
 def setConfig(app):
+    if PAPERLESS_BASE_URL:
+        # Remove possible trailing missconfig "/", "/api/" oder "/api"
+        PAPERLESS_BASE_URL = re.sub(r'(/api/|/api|/)$', '', PAPERLESS_BASE_URL)
+
     app.config["VERSION"] = VERSION
     app.config["PAPERLESS_BASE_URL"] = PAPERLESS_BASE_URL
     app.config["AUTH_TOKEN"] = AUTH_TOKEN
@@ -66,8 +69,6 @@ async def initializeConnections(app):
     initializeAIConnection(app)
     await initializePaperlessConnection(app)
 
-import asyncio
-
 async def initializePaperlessConnection(app):
     logging.info("Initialize Paperless Connection")
     max_retries = 5  # Anzahl der Wiederholungen
@@ -77,6 +78,7 @@ async def initializePaperlessConnection(app):
         try:
             await app.config["PAPERLESS_API"].initialize()  # Ensure the API is ready            app.config["PAPERLESSCONNECTION"] = True
             logging.info("Paperless Connection established successfully.")
+            app.config["PAPERLESSCONNECTION"] = True
             return True
         except Exception as e:
             logging.warning(f"Attempt {attempt + 1} failed: {e}")
