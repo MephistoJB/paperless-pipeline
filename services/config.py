@@ -16,7 +16,7 @@ DEBUG = os.getenv('DEBUG', 'False')
 CACHE_TIME = int(os.getenv('CACHE_TIME', 60))  # Ensure CACHE_TIME is an integer
 
 # Define application version
-VERSION = "1.4.3"
+VERSION = "1.4.4"
 
 # Define fixed tags for button actions
 BUTTON_TAGS = {
