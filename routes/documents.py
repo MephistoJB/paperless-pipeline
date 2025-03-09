@@ -49,15 +49,17 @@ Returns:
 """
 @documents_bp.route('/doc/list_inbox', methods=['GET'])
 async def inbox_list():
-    inboxlist = []
-    search = f"tag:{current_app.config['INBOX_TAG']}"  # Search for inbox-tagged documents
+    if current_app.config["PAPERLESS_API"].is_initialized:
+        inboxlist = []
+        search = f"tag:{current_app.config['INBOX_TAG']}"  # Search for inbox-tagged documents
 
-    # Fetch all matching documents asynchronously
-    async for document in current_app.config["PAPERLESS_API"].documents.search(search):
-        inboxlist.append(document.id)
+        # Fetch all matching documents asynchronously
+        async for document in current_app.config["PAPERLESS_API"].documents.search(search):
+            inboxlist.append(document.id)
+        return jsonify(inboxlist), 200
+    else:
+        return jsonify({"Error: Connection to Paperless-NGX not established "}), 404
 
-    logging.debug(inboxlist)
-    return jsonify(inboxlist), 200
 
 """
 Assigns or removes tags from a document.

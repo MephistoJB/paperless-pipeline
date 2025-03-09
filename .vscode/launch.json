@@ -2,6 +2,7 @@
   "version": "0.2.0",
   "configurations": [
 
+
     {
       "name": "Python-Debugger: Aktuelle Datei",
       "type": "debugpy",
@@ -36,6 +37,21 @@
       "name": "localhost:4000",
       "request": "launch",
       "url": "http://localhost:4000"
+    },
+    {
+      "name": "Debug Remote Server",
+      "type": "python",
+      "request": "attach",
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}",
+          "remoteRoot": "/app"
+        }
+      ],
+      "port": 5679,
+      "host": "192.168.1.16",
+      "justMyCode": false,
+      //"preLaunchTask": "restart-app"
     }
   ]
 }

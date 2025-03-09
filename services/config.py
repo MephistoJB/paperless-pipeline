@@ -75,8 +75,7 @@ async def initializePaperlessConnection(app):
 
     for attempt in range(max_retries):
         try:
-            await app.config["PAPERLESS_API"].initialize()  # Ensure the API is ready
-            app.config["PAPERLESSCONNECTION"] = True
+            await app.config["PAPERLESS_API"].initialize()  # Ensure the API is ready            app.config["PAPERLESSCONNECTION"] = True
             logging.info("Paperless Connection established successfully.")
             return True
         except Exception as e:
