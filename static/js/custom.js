@@ -47,6 +47,37 @@ function showToast(type, message, duration = 2000) {
 }
 
 /**
+ * Sends a request to set the correspondent for a document.
+ *
+ * @param {number} docId - The ID of the document to update.
+ * @param {string} correspondent - The name of the correspondent.
+ */
+async function setCorrespondent(docId, correspondent) {
+    try {
+        if (!docId || !correspondent) {
+            console.warn("setCorrespondent called with invalid parameters:", docId, correspondent);
+            return;
+        }
+
+        console.log(`Setting correspondent for document ${docId} to:`, correspondent);
+
+        const response = await fetch(`/doc/set_correspondant/${docId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ correspondent }),
+        });
+
+        if (!response.ok) throw new Error(`Failed to set correspondent: ${response.statusText}`);
+
+        showToast("success", "Correspondent updated successfully.");
+        loadInboxList();  // Reload the inbox to reflect the changes
+    } catch (error) {
+        console.error("Error setting correspondent:", error);
+        showToast("error", "Error updating correspondent.");
+    }
+}
+
+/**
  * Sends a request to tag a document with the specified tags.
  *
  * @param {number} docId - The ID of the document to be tagged.
@@ -141,6 +172,32 @@ async function connectToPaperless() {
     }
 }
 
+function loadCorrespondentList(docId) {
+    console.log("Loading correspondents...");
+
+    $.getJSON('/doc/list_correspondents')
+        .done(function (correspondents) {
+            const dropdownMenu = $("#correspondent-btn-dd");
+            dropdownMenu.empty(); // Vorherige Einträge löschen
+
+            $.each(correspondents, function (index, cor) {
+                let link = $('<a>', {
+                    class: "dropdown-item",
+                    href: "#",
+                    text: cor.name
+                }).on("click", function () {
+                    setCorrespondent(docId, cor.name);
+                    $("#correspondent-btn").text(cor + "    "); // UI-Update
+                });
+
+                dropdownMenu.append(link);
+            });
+        })
+        .fail(function () {
+            console.error("Error loading correspondents.");
+        });
+}
+
 // Loads both document information and the corresponding PDF preview
 async function loadDocument(docId) {
     try {
@@ -155,7 +212,8 @@ async function loadDocument(docId) {
         const infoResponse = await $.getJSON(`/doc/get_info/${docId}`);
 
         $('#title').text(infoResponse.title);
-        $('#cor').text(infoResponse.correspondent);
+        $("#correspondent-btn").text(infoResponse.correspondent + "  ");
+        //$('#cor').text(infoResponse.correspondent);
         $('#type').text(infoResponse.type);
         $('#path').text(infoResponse.storage_path);
 
@@ -181,6 +239,10 @@ async function loadDocument(docId) {
         $("#btnInvestigate").off("click").on("click", function () {
             const tags = $(this).attr("data-tags") || "";
             tagDocument(docId, tags.split(","));
+        });
+
+        $('#correspondent-btn').off('click').on('click', function () {
+            loadCorrespondentList(docId);
         });
 
         // Load and display the PDF preview

@@ -87,6 +87,18 @@ class Cache:
     """
     async def getTagIDByName(self, name: str) -> int:
         return await self.getItemByName(self._tagsCache, self._api.tags, name)
+    
+    async def getCorrespondantIDByName(self, name: str) -> int:
+        return await self.getItemByName(self._correspondentCache, self._api.correspondents, name)
+    
+
+    async def getAllCorrespondents(self):
+        return await self.getAllItems(self._correspondentCache, self._api.correspondents)
+    
+    async def getAllItems(self, cacheContainer: dict, cachingElement):
+        if cacheContainer["lastRefresh"] is None or cacheContainer["lastRefresh"] < time.time() - (self._cache_time * 60):
+            await self.refreshCacheOfContainer(cacheContainer, cachingElement)
+        return cacheContainer["cache"]
 
     """
     Retrieves an item ID by its name from the cache or API.

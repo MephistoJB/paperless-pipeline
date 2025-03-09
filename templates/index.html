@@ -41,16 +41,13 @@
                 <div class="position-sticky d-flex flex-column flex-grow-1">
                     <div class="sidebar-header d-flex justify-content-between align-items-center px-3 py-2">
                         <h3 class="text-white sidebar-text">Menu</h3>
-                        <button id="sidebarToggle" class="btn btn-outline-light">☰</button>
+                        <!--<button id="sidebarToggle" class="btn btn-outline-light">☰</button>-->
                     </div>
                     <ul class="nav flex-column flex-grow-1">
                         <li class="nav-item">
                             <a class="nav-link text-white active" href="#" title="Home">
                                 <i class="bi bi-house"></i> <span class="sidebar-text">Home</span>
                             </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-white" href="#" id="navRefresh">Refresh</a>
                         </li>
                     </ul>
                 </div>
@@ -97,7 +94,7 @@
                             </div>
                         </div>
 
-                        <div class="col-lg-3 col-sm-12" id="control-area">
+                        <div class="col-auto" id="control-area">
                             <div class="card">
                                 <div class="card-body">
                                     <ul class="list-group list-group-flush">
@@ -105,7 +102,14 @@
                                             <strong>Title:</strong> <span id="title"></span>
                                         </li>
                                         <li class="list-group-item">
-                                            <strong>Correspondent:</strong> <span id="cor"></span>
+                                            <strong>Correspondent:</strong>
+                                            <div class="btn-group">
+                                                <button id="correspondent-btn" type="button" class="btn dropdown-toggle dropdown-toggle-split" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                                <span class="sr-only">Loading...</span>
+                                                </button>
+                                                <div id="correspondent-btn-dd"class="dropdown-menu">
+                                                </div>
+                                            </div>
                                         </li>
                                         <li class="list-group-item">
                                             <strong>Document Type:</strong> <span id="type"></span>

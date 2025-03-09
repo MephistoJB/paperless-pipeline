@@ -41,6 +41,13 @@ async def document_info(doc_id):
     logging.debug(f"Document '{doc.title}' is an {type} from {correspondent} at {path}.")
     return jsonify(response_data), 200
 
+
+@documents_bp.route('/doc/list_correspondents', methods=['GET'])
+async def list_correspondents():
+    cache = current_app.config["CACHE"]  # Retrieve cache instance
+    correspondents = await cache.getAllCorrespondents()
+    return jsonify(correspondents)
+
 """
 Lists all documents that are currently in the inbox.
 
@@ -141,5 +148,32 @@ async def tag_document(doc_id):
 
     if success:
         return jsonify({"message": f"Tags {tag_names} successfully updated for document {doc_id}"}), 200
+    else:
+        return jsonify({"error": "Error updating document tags"}), 500  # Return error if operation failed
+    
+@documents_bp.route('/doc/set_correspondant/<int:doc_id>', methods=['POST'])
+async def cor_document(doc_id):
+    api = current_app.config["PAPERLESS_API"]  # Retrieve API instance
+    cache = current_app.config["CACHE"]  # Retrieve cache instance
+    data = await request.get_json()  # Parse incoming JSON request
+    #doc_id = data.get("doc_id")  # Extract document ID
+    correspondent = data.get("correspondent", "")  # Extract tag names, default to empty list
+    # Fetch the document from Paperless
+    document = await api.documents(doc_id)
+    document.correspondent = await cache.getCorrespondantIDByName(correspondent)
+
+
+    #########TEST AREA###############
+    # Get the current tags assigned to the document
+    current_tags = document.tags
+    testTag = await cache.getTagIDByName("test")
+    current_tags.append(testTag)
+    document.tags = current_tags
+
+
+    success = await document.update()  # Commit changes asynchronously
+
+    if success:
+        return jsonify({"message": f"Correspondant {correspondant} successfully updated for document {doc_id}"}), 200
     else:
         return jsonify({"error": "Error updating document tags"}), 500  # Return error if operation failed
