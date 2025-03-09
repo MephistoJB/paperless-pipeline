@@ -77,6 +77,70 @@ async function tagDocument(docId, tags) {
     }
 }
 
+/**
+ * Sends a request to connect to the AI service.
+ */
+async function connectToAI() {
+    try {
+        const response = await fetch('/status/connectToAI', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) throw new Error(`Connection failed: ${response.statusText}`);
+
+        showToast('success', 'Successfully connected to AI!');
+        location.reload(); // Reload page to update button state
+    } catch (error) {
+        console.error('Error connecting to AI:', error);
+        showToast('error', 'Connection to AI failed.');
+    }
+}
+
+async function updateConnectionStatus() {
+    try {
+        const response = await fetch('/status/check');
+        if (!response.ok) throw new Error("Failed to fetch status");
+
+        const data = await response.json();
+
+        // Update AI Connection Badge
+        const aiBadge = document.querySelector('#ai-status');
+        aiBadge.textContent = data.aiconnection ? "Connected" : "Not Connected";
+        aiBadge.className = data.aiconnection ? "badge bg-success ms-2" : "badge bg-danger ms-2";
+
+        // Update Paperless Connection Badge
+        const paperlessBadge = document.querySelector('#paperless-status');
+        paperlessBadge.textContent = data.paperlessconnection ? "Connected" : "Not Connected";
+        paperlessBadge.className = data.paperlessconnection ? "badge bg-success ms-2" : "badge bg-danger ms-2";
+    } catch (error) {
+        console.error("Error updating status:", error);
+    }
+}
+
+// Starte das Polling alle 5 Sekunden
+setInterval(updateConnectionStatus, 5000);
+
+/**
+ * Sends a request to connect to the Paperless service.
+ */
+async function connectToPaperless() {
+    try {
+        const response = await fetch('/status/connectToPaperless', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) throw new Error(`Connection failed: ${response.statusText}`);
+
+        showToast('success', 'Successfully connected to Paperless!');
+        location.reload(); // Reload page to update button state
+    } catch (error) {
+        console.error('Error connecting to Paperless:', error);
+        showToast('error', 'Connection to Paperless failed.');
+    }
+}
+
 // Loads both document information and the corresponding PDF preview
 async function loadDocument(docId) {
     try {

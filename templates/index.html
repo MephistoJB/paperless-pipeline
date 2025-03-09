@@ -50,8 +50,24 @@
                         </li>
                     </ul>
                 </div>
-                <div class="position-absolute bottom-0 w-100 text-center py-2 border-top border-secondary">
-                    <small class="text-white">Version {{ version }}</small>
+                <div class="position-absolute bottom-0 w-100 text-start py-2 border-top border-secondary px-3">
+                    <small class="text-white d-flex align-items-center mb-2">
+                        <span>AI</span>
+                        <a href="javascript:void(0);" onclick="connectToAI()" 
+                           id="ai-status"
+                           class="badge rounded-pill {% if aiconnection %}bg-success{% else %}bg-danger{% endif %} ms-2">
+                            {% if aiconnection %}Connected{% else %}Not Connected{% endif %}
+                        </a>
+                    </small>
+                    <small class="text-white d-flex align-items-center mb-2">
+                        <span>Paperless</span>
+                        <a href="javascript:void(0);" onclick="connectToPaperless()" 
+                           id="paperless-status"
+                           class="badge rounded-pill {% if paperlessconnection %}bg-success{% else %}bg-danger{% endif %} ms-2">
+                            {% if paperlessconnection %}Connected{% else %}Not Connected{% endif %}
+                        </a>
+                    </small>
+                    <small class="text-white d-block">Version {{ version }}</small>
                 </div>
             </nav>
 
@@ -102,7 +118,6 @@
 
                             <!-- Control Buttons -->
                             <div class="controls mt-4">
-                                <p>Button Tags Debug: {{ button_tags }}</p>
                                 <button id="btnNext" class="btn btn-primary" data-tags="{{ button_tags['next'] }}">Next3</button>
                                 <button id="btnSendToAI" class="btn btn-warning" data-tags="{{ button_tags['send_to_ai'] }}">Send to AI</button>
                                 <button id="btnInvestigate" class="btn btn-danger" data-tags="{{ button_tags['investigate'] }}">Investigate</button>

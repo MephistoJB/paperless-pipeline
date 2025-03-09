@@ -61,39 +61,57 @@ def setConfig(app):
     app.config["BUTTON_TAGS"] = BUTTON_TAGS
     app.config["ACCEPTED_DATAFIELDS"] = ACCEPTED_DATAFIELDS
 
-"""
-Checks and initializes the AI configuration.
 
-Parameters:
-- app (Quart): The Quart application instance.
+async def initializeConnections(app):
+    initializeAIConnection(app)
+    await initializePaperlessConnection(app)
 
-Ensures:
-- OLLAMA_HOST and OLLAMA_MODEL are properly set.
-- Initializes AI instance and verifies connectivity.
-- Stops the server if a configuration error occurs.
-"""
-def checkConfig(app):
+import asyncio
+
+async def initializePaperlessConnection(app):
+    logging.info("Initialize Paperless Connection")
+    max_retries = 5  # Anzahl der Wiederholungen
+    retry_delay = 3  # Sekunden zwischen den Versuchen
+
+    for attempt in range(max_retries):
+        try:
+            await app.config["PAPERLESS_API"].initialize()  # Ensure the API is ready
+            app.config["PAPERLESSCONNECTION"] = True
+            logging.info("Paperless Connection established successfully.")
+            return True
+        except Exception as e:
+            logging.warning(f"Attempt {attempt + 1} failed: {e}")
+            await asyncio.sleep(retry_delay)  # Warten und erneut versuchen
+
+    logging.error("Error initializing Paperless: All retries failed.")  
+    app.config["PAPERLESSCONNECTION"] = False
+    return False
+
+def initializeAIConnection(app):
+    logging.info("Initialize Ollama Connection")
     if not OLLAMA_HOST:
         logging.error("OLLAMA_HOST is not set.")
-        app.stopServer()
-        return
-
+        app.config["AICONNECTION"] = False
+        return False
     logging.info(f"OLLAMA_HOST is set to: {OLLAMA_HOST}")
 
     if not OLLAMA_MODEL:
         logging.error("OLLAMA_MODEL is not set.")
-        app.stopServer()
-        return
-
+        app.config["AICONNECTION"] = False
+        return False
     logging.info(f"OLLAMA_MODEL is set to: {OLLAMA_MODEL}")
-
     try:
         ai = AI(OLLAMA_MODEL, logging)
         if not ai.selfCheck():
             logging.error("Ollama connection failed.")
-            app.stopServer()
+            app.config["AICONNECTION"] = False
+            return False
         else:
             app.config["AI_API"] = ai
+            app.config["AICONNECTION"] = True
+            return True
     except Exception as e:
         logging.error(f"Error initializing AI: {e}")
-        app.stopServer()
+        app.config["AICONNECTION"] = False
+        return False
+    

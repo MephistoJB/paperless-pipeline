@@ -1,8 +1,19 @@
 from quart import Blueprint, request, jsonify, current_app, Response, stream_with_context  # Import necessary modules
 import logging, subprocess  # Consolidating imports
+from services.config import initializeAIConnection, initializePaperlessConnection
 
 # Blueprint for status-related API endpoints
 status_bp = Blueprint("status", __name__)
+
+@status_bp.route('/status/check', methods=['GET'])
+async def check_status():
+    """
+    API-Route zur Überprüfung der aktuellen Verbindungszustände.
+    """
+    return jsonify({
+        "aiconnection": current_app.config.get("AICONNECTION", False),
+        "paperlessconnection": current_app.config.get("PAPERLESSCONNECTION", False)
+    })
 
 """
 Streams the application log in real-time by reading from stdout.
@@ -58,3 +69,40 @@ async def debug():
     except Exception as e:
         logging.error(f"Error processing debug request: {e}")
         return jsonify({"error": "An error occurred while processing the request"}), 500  # Return error response if necessary
+
+@status_bp.route('/status/connectToAI', methods=['POST'])
+async def connect_to_ai():
+    """
+    API-Route zur Initialisierung der KI-Verbindung.
+    
+    Returns:
+    - JSON-Response mit Status der Verbindung.
+    """
+    try:
+        success = initializeAIConnection(current_app)
+        if success:
+            return jsonify({"status": "success", "message": "AI connection established"}), 200
+        else:
+            return jsonify({"status": "error", "message": "Failed to connect to AI"}), 500
+    except Exception as e:
+        logging.error(f"Error connecting to AI: {e}")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
+
+
+@status_bp.route('/status/connectToPaperless', methods=['POST'])
+async def connect_to_paperless():
+    """
+    API-Route zur Initialisierung der Paperless-Verbindung.
+    
+    Returns:
+    - JSON-Response mit Status der Verbindung.
+    """
+    try:
+        success = await initializePaperlessConnection(current_app)
+        if success:
+            return jsonify({"status": "success", "message": "Paperless connection established"}), 200
+        else:
+            return jsonify({"status": "error", "message": "Failed to connect to Paperless"}), 500
+    except Exception as e:
+        logging.error(f"Error connecting to Paperless: {e}")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500

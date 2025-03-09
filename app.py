@@ -62,23 +62,13 @@ Initializes configurations and services before the server starts.
 """
 @app.before_serving
 async def init_before_serving():
-    config.checkConfig(app)  # Validate configuration
     logging.info("Starting pre-server initialization...")
 
     app.config["REQUEST_QUEUE"] = request_queue  # Store the request queue in app config
-    await  paperlessinit()
     # Start the background queue processing task
     app.config["BACKGROUND_TASK"] = asyncio.create_task(background_task())
-
+    await config.initializeConnections(app)  # Validate configuration
     logging.info("Pre-server initialization complete.")
-
-async def paperlessinit():
-    logging.info("Initialize Paperless Connection")
-    try:
-        await app.config["PAPERLESS_API"].initialize()  # Ensure the API is ready
-    except Exception as e:
-        await paperlessinit()
-        #logging.error(f"Error initializing Paperless: {e} Trying again")  # Log any errors
 
 # Apply configuration settings from the `config` module
 config.setConfig(app)
