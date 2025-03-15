@@ -1,6 +1,6 @@
 import logging, os, re, asyncio
 from services.ai_api import AI
-from pypaperless import Paperless
+from pypaperless import Paperless # type: ignore
 
 # Load environment variables for configuration
 LOG_LEVEL = os.getenv('LOG_LEVEL', None)
@@ -16,13 +16,11 @@ DEBUG = os.getenv('DEBUG', 'False')
 CACHE_TIME = int(os.getenv('CACHE_TIME', 60))  # Ensure CACHE_TIME is an integer
 
 # Define application version
-VERSION = "1.4.4"
+VERSION = "1.5.0"
 
-# Define fixed tags for button actions
+# Dynamisch die BUTTON_TAGS aus den Umgebungsvariablen laden
 BUTTON_TAGS = {
-    "next": "-Inbox, test",
-    "send_to_ai": "ai-title, -Inbox, test",
-    "investigate": "check, -Inbox"
+    key[7:].replace("__", " "): value for key, value in os.environ.items() if key.startswith("BUTTON_")
 }
 
 # Define accepted data fields (future work can extend this)
@@ -119,4 +117,3 @@ def initializeAIConnection(app):
         logging.error(f"Error initializing AI: {e}")
         app.config["AICONNECTION"] = False
         return False
-    
