@@ -91,9 +91,21 @@ class Cache:
     async def getCorrespondantIDByName(self, name: str) -> int:
         return await self.getItemByName(self._correspondentCache, self._api.correspondents, name)
     
+    async def getTypeIDByName(self, name: str) -> int:
+        return await self.getItemByName(self._documentTypeCache, self._api.document_types, name)
+    
+    async def getPathIDByName(self, name: str) -> int:
+        return await self.getItemByName(self._storagePathCache, self._api.storage_paths, name)
+    
 
     async def getAllCorrespondents(self):
         return await self.getAllItems(self._correspondentCache, self._api.correspondents)
+    
+    async def getAllTypes(self):
+        return await self.getAllItems(self._documentTypeCache, self._api.document_types)
+    
+    async def getAllPaths(self):
+        return await self.getAllItems(self._storagePathCache, self._api.storage_paths)
     
     async def getAllItems(self, cacheContainer: dict, cachingElement):
         if cacheContainer["lastRefresh"] is None or cacheContainer["lastRefresh"] < time.time() - (self._cache_time * 60):

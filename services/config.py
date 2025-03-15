@@ -20,8 +20,8 @@ VERSION = "1.4.4"
 
 # Define fixed tags for button actions
 BUTTON_TAGS = {
-    "next": "-Inbox",
-    "send_to_ai": "ai-title, -Inbox",
+    "next": "-Inbox, test",
+    "send_to_ai": "ai-title, -Inbox, test",
     "investigate": "check, -Inbox"
 }
 

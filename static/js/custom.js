@@ -77,6 +77,56 @@ async function setCorrespondent(docId, correspondent) {
     }
 }
 
+async function setType(docId, type) {
+    try {
+        if (!docId || !type) {
+            console.warn("setType called with invalid parameters:", docId, type);
+            return;
+        }
+
+        console.log(`Setting Type for document ${docId} to:`, type);
+
+        const response = await fetch(`/doc/set_type/${docId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ type }),
+        });
+
+        if (!response.ok) throw new Error(`Failed to set type: ${response.statusText}`);
+
+        showToast("success", "Type updated successfully.");
+        loadInboxList();  // Reload the inbox to reflect the changes
+    } catch (error) {
+        console.error("Error setting type:", error);
+        showToast("error", "Error updating type.");
+    }
+}
+
+async function setPath(docId, path) {
+    try {
+        if (!docId || !path) {
+            console.warn("setPath called with invalid parameters:", docId, path);
+            return;
+        }
+
+        console.log(`Setting path for document ${docId} to:`, path);
+
+        const response = await fetch(`/doc/set_path/${docId}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ correspondent }),
+        });
+
+        if (!response.ok) throw new Error(`Failed to set path: ${response.statusText}`);
+
+        showToast("success", "Path updated successfully.");
+        loadInboxList();  // Reload the inbox to reflect the changes
+    } catch (error) {
+        console.error("Error setting path:", error);
+        showToast("error", "Error updating path.");
+    }
+}
+
 /**
  * Sends a request to tag a document with the specified tags.
  *
@@ -186,8 +236,8 @@ function loadCorrespondentList(docId) {
                     href: "#",
                     text: cor.name
                 }).on("click", function () {
+                    $("#correspondent-btn").text(cor.name + "    "); // UI-Update
                     setCorrespondent(docId, cor.name);
-                    $("#correspondent-btn").text(cor + "    "); // UI-Update
                 });
 
                 dropdownMenu.append(link);
@@ -195,6 +245,56 @@ function loadCorrespondentList(docId) {
         })
         .fail(function () {
             console.error("Error loading correspondents.");
+        });
+}
+
+function loadTypeList(docId) {
+    console.log("Loading types...");
+    $.getJSON('/doc/list_types')
+        .done(function (types) {
+            const dropdownMenu = $("#type-btn-dd");
+            dropdownMenu.empty(); // Vorherige Einträge löschen
+
+            $.each(types, function (index, type) {
+                let link = $('<a>', {
+                    class: "dropdown-item",
+                    href: "#",
+                    text: type.name
+                }).on("click", function () {
+                    $("#types-btn").text(types.name + "    "); // UI-Update
+                    setType(docId, type.name);
+                });
+
+                dropdownMenu.append(link);
+            });
+        })
+        .fail(function () {
+            console.error("Error loading types.");
+        });
+}
+
+function loadPathsList(docId) {
+    console.log("Loading Paths...");
+    $.getJSON('/doc/list_paths')
+        .done(function (paths) {
+            const dropdownMenu = $("#path-btn-dd");
+            dropdownMenu.empty(); // Vorherige Einträge löschen
+
+            $.each(paths, function (index, path) {
+                let link = $('<a>', {
+                    class: "dropdown-item",
+                    href: "#",
+                    text: path.name
+                }).on("click", function () {
+                    $("#path-btn").text(path.name + "    "); // UI-Update
+                    setPath(docId, path.name);
+                });
+
+                dropdownMenu.append(link);
+            });
+        })
+        .fail(function () {
+            console.error("Error loading paths.");
         });
 }
 
@@ -214,8 +314,8 @@ async function loadDocument(docId) {
         $('#title').text(infoResponse.title);
         $("#correspondent-btn").text(infoResponse.correspondent + "  ");
         //$('#cor').text(infoResponse.correspondent);
-        $('#type').text(infoResponse.type);
-        $('#path').text(infoResponse.storage_path);
+        $('#type-btn').text(infoResponse.type + "  ");
+        $('#path-btn').text(infoResponse.storage_path + "  ");
 
         const tagsContainer = $('#tags').empty();
         infoResponse.tags.forEach(tag => {
@@ -243,6 +343,14 @@ async function loadDocument(docId) {
 
         $('#correspondent-btn').off('click').on('click', function () {
             loadCorrespondentList(docId);
+        });
+
+        $('#path-btn').off('click').on('click', function () {
+            loadPathsList(docId);
+        });
+
+        $('#type-btn').off('click').on('click', function () {
+            loadTypeList(docId);
         });
 
         // Load and display the PDF preview

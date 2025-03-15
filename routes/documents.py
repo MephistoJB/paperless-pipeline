@@ -48,6 +48,18 @@ async def list_correspondents():
     correspondents = await cache.getAllCorrespondents()
     return jsonify(correspondents)
 
+@documents_bp.route('/doc/list_types', methods=['GET'])
+async def list_types():
+    cache = current_app.config["CACHE"]  # Retrieve cache instance
+    types = await cache.getAllTypes()
+    return jsonify(types)
+
+@documents_bp.route('/doc/list_paths', methods=['GET'])
+async def list_paths():
+    cache = current_app.config["CACHE"]  # Retrieve cache instance
+    paths = await cache.getAllPaths()
+    return jsonify(paths)
+
 """
 Lists all documents that are currently in the inbox.
 
@@ -161,6 +173,51 @@ async def cor_document(doc_id):
     # Fetch the document from Paperless
     document = await api.documents(doc_id)
     document.correspondent = await cache.getCorrespondantIDByName(correspondent)
+
+    success = await document.update()  # Commit changes asynchronously
+
+    if success:
+        return jsonify({"message": f"Correspondant {correspondent} successfully updated for document {doc_id}"}), 200
+    else:
+        return jsonify({"error": "Error updating document correspondant"}), 500  # Return error if operation failed
+    
+@documents_bp.route('/doc/set_type/<int:doc_id>', methods=['POST'])
+async def type_document(doc_id):
+    api = current_app.config["PAPERLESS_API"]  # Retrieve API instance
+    cache = current_app.config["CACHE"]  # Retrieve cache instance
+    data = await request.get_json()  # Parse incoming JSON request
+    #doc_id = data.get("doc_id")  # Extract document ID
+    type = data.get("type", "")  # Extract tag names, default to empty list
+    # Fetch the document from Paperless
+    document = await api.documents(doc_id)
+    document.type = await cache.getTypeIDByName(type)
+
+
+    #########TEST AREA###############
+    # Get the current tags assigned to the document
+    current_tags = document.tags
+    testTag = await cache.getTagIDByName("test")
+    current_tags.append(testTag)
+    document.tags = current_tags
+
+
+    success = await document.update()  # Commit changes asynchronously
+
+    if success:
+        return jsonify({"message": f"Type {type} successfully updated for document {doc_id}"}), 200
+    else:
+        return jsonify({"error": "Error updating document type"}), 500  # Return error if operation failed
+    
+@documents_bp.route('/doc/set_path/<int:doc_id>', methods=['POST'])
+async def path_document(doc_id):
+    api = current_app.config["PAPERLESS_API"]  # Retrieve API instance
+    cache = current_app.config["CACHE"]  # Retrieve cache instance
+    data = await request.get_json()  # Parse incoming JSON request
+    #doc_id = data.get("doc_id")  # Extract document ID
+    path = data.get("path", "")  # Extract tag names, default to empty list
+    # Fetch the document from Paperless
+    document = await api.documents(doc_id)
+    document.path = await cache.getPathIDByName(path)
 
 
     #########TEST AREA###############
