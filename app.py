@@ -83,8 +83,7 @@ Main entry point for starting the Quart application.
 - Initializes the application
 - Starts the Hypercorn server
 """
-async def main():
-    debug = os.getenv('DEBUG', 'False')  # Fetch debug mode from environment variables
+async def main(debug):
     logLevel = "DEBUG" if debug == 'True' else "INFO"  # Set log level accordingly
 
     # Config the Root-Logger
@@ -122,6 +121,13 @@ async def main():
 
     await hypercorn.asyncio.serve(app, conf)  # Start Quart application with Hypercorn
 
+def debugStart():
+    asyncio.run(main("True"))
+
 # Ensure the application runs when executed as a script
 if __name__ == '__main__':
-    asyncio.run(main())  # Run the `main()` function to start the server
+    debug = os.getenv('DEBUG', 'False')  # Fetch debug mode from environment variables
+    if debug == "True":
+        run_process(".", debugStart)
+    else:
+        asyncio.run(main(debug))
